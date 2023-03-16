@@ -23,6 +23,6 @@ public class DBApp {
             pw.print(strTableName + "," + name + "," + type + (strClusteringKeyColumn.equals(name)) + ",null,null," +
                     htblColNameMin.get(name) + "," + htblColNameMax.get(name));
         }
-
+        pw.close();
     }
 }
