@@ -1,5 +1,4 @@
-import java.io.FileNotFoundException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.util.*;
 public class DBApp {
 
@@ -27,11 +26,34 @@ public class DBApp {
     }
 
     public void createIndex(String strTableName,
-                            String[] strarrColName) throws DBAppException{}
+                            String[] strarrColName) throws DBAppException{
+
+    }
 
     public void insertIntoTable(String strTableName,
                                 Hashtable<String,Object> htblColNameValue)
-            throws DBAppException{}
+            throws DBAppException, IOException {
+        boolean foundTable = false;
+        Scanner sc = new Scanner(new FileReader("meta-data.csv"));
+        while(sc.hasNext()){
+            String[] splitted = sc.next().split(",");
+            if(splitted[0].equals(strTableName)){
+                foundTable = true;
+                //TODO validate data
+                break;
+            }
+        }
+        if(!foundTable){
+            throw new DBAppException("No such table exist");
+        }
+
+        Properties prop = new Properties();
+        String fileName = "DBApp.config";
+        FileInputStream fileInputStream = new FileInputStream(fileName);
+        prop.load(fileInputStream);
+        int maxRow = Integer.parseInt(prop.getProperty("MaximumRowsCountingTablePage"));
+
+    }
 
     public void updateTable(String strTableName,
                             String strClusteringKeyValue,
