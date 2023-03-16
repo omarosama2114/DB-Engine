@@ -12,6 +12,8 @@ public class DBApp {
                             Hashtable<String,String> htblColNameMin,
                             Hashtable<String,String> htblColNameMax )
             throws DBAppException, FileNotFoundException {
+
+        //TODO check if the table already created and create folder whenever table is created.
         PrintWriter pw = new PrintWriter("meta-data.csv");
         for(String name: htblColNameType.keySet()){
             String type = htblColNameType.get(name);
@@ -53,9 +55,8 @@ public class DBApp {
         }
     }
 
-    public void insertIntoTable(String strTableName,
-                                Hashtable<String,Object> htblColNameValue)
-            throws DBAppException, IOException, ParseException {
+    public void verifyBeforeInsert(String strTableName, Hashtable<String,Object> htblColNameValue)
+            throws DBAppException, FileNotFoundException, ParseException {
         boolean foundTable = false;
         Scanner sc = new Scanner(new FileReader("meta-data.csv"));
         int cnt = 0;
@@ -83,6 +84,28 @@ public class DBApp {
         if(!foundTable){
             throw new DBAppException("No such table exist");
         }
+    }
+
+    public void insertIntoTable(String strTableName,
+                                Hashtable<String,Object> htblColNameValue)
+            throws DBAppException, IOException, ParseException {
+
+        verifyBeforeInsert(strTableName, htblColNameValue);
+        //TODO
+        /*
+        String folderName = strTableName; // folder name to check
+        String srcFolderPath = "src"; // path to the src folder
+        File srcFolder = new File(srcFolderPath); // create a File object for the src folder
+        if (srcFolder.isDirectory()) { // check if srcFolder is a directory
+            File[] files = srcFolder.listFiles(); // get a list of files and folders in the src folder
+            for (File file : files) { // iterate through the list of files and folders
+                if (file.isDirectory() && file.getName().equals(folderName)) { // check if the current file is a folder with the specified name
+                    System.out.println("Folder " + folderName + " exists in " + srcFolderPath);
+                    return;
+                }
+            }
+        }
+         */
 
         Properties prop = new Properties();
         String fileName = "DBApp.config";
