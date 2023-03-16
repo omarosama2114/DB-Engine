@@ -19,7 +19,7 @@ public class DBApp {
             if(!htblColNameMin.containsKey(name)){
                 throw new DBAppException("No Such key in htbColNameMin");
             }
-            pw.print(strTableName + "," + name + "," + type + (strClusteringKeyColumn.equals(name)) + ",null,null," +
+            pw.print(strTableName + "," + name + "," + type + "," + (strClusteringKeyColumn.equals(name)) + ",null,null," +
                     htblColNameMin.get(name) + "," + htblColNameMax.get(name));
         }
         pw.close();
