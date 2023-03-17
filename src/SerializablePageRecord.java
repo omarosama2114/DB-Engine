@@ -4,13 +4,12 @@ public class SerializablePageRecord implements Serializable, Comparable {
 
     String afterSerialization;
     int clusteringKey;
-    public SerializablePageRecord(String values){
+    public SerializablePageRecord(String values, int clusteringKey) {
         this.afterSerialization = values;
-        String[] splitted = afterSerialization.split(",");
-        this.clusteringKey = Integer.parseInt(splitted[0]);
+        this.clusteringKey = clusteringKey;
     }
 
-    public String toString(){
+    public String toString() {
         return afterSerialization;
     }
 

@@ -62,7 +62,8 @@ public class DBApp {
         }
     }
 
-    public void verifyBeforeInsert(String strTableName, Hashtable<String,Object> htblColNameValue)
+    public void verifyBeforeInsert(String strTableName, Hashtable<String,Object> htblColNameValue,
+                                   Vector<String> keys, StringBuilder clusteringKeyName)
             throws DBAppException, FileNotFoundException, ParseException {
         boolean foundTable = false;
         Scanner sc = new Scanner(new FileReader("meta-data.csv"));
@@ -72,6 +73,10 @@ public class DBApp {
             if(splitted[0].equals(strTableName)){
                 cnt++;
                 foundTable = true;
+                keys.add(splitted[1]);
+                if(splitted[3].equals("true")) {
+                    clusteringKeyName = splitted[1];
+                }
                 if(!htblColNameValue.containsKey(splitted[1])){
                     sc.close();
                     throw new DBAppException("Table content does not match");
@@ -97,13 +102,39 @@ public class DBApp {
         }
     }
 
-    public int binarySearch(int pagesCount,  int id, int maxRows) throws IOException, ClassNotFoundException {
+    public void insertionHandler(int[] boundaries, int pagesCount, String strTableName,
+             Hashtable<String,Object> htblColNameValue, Vector<String> keys, StringBuilder clusteringKeyName)
+            throws IOException {
+        int first = boundaries[0];
+        int second = boundaries[1];
+        if(pagesCount == 0) {
+            int clusteringKey = (int) htblColNameValue.get(clusteringKeyName.toString());
+            StringBuilder record = new StringBuilder();
+            for(String s : keys) {
+                record.append(htblColNameValue.get(s));
+                record.append(",");
+            }
+            record.deleteCharAt(record.length() - 1);
+            SerializablePageRecord a = new SerializablePageRecord(record.toString() , clusteringKey);
+            Page page = new Page();
+            page.addRecord(a);
+            FileOutputStream fos = new FileOutputStream(strTableName + "/" + "1.class");
+            ObjectOutputStream oos = new ObjectOutputStream(fos);
+            oos.writeObject(page);
+            oos.close();
+        }
+        
+
+    }
+
+    public int[] binarySearch(int pagesCount, int id, int maxRows, String strTableName)
+            throws IOException, ClassNotFoundException {
         int low = 1;
         int high = pagesCount;
         int targetPage = -1;
         while(low <= high) {
             int mid = (low + high) / 2;
-            FileInputStream fis = new FileInputStream(mid + ".class");
+            FileInputStream fis = new FileInputStream(strTableName + "/" + mid + ".class");
             ObjectInputStream ois = new ObjectInputStream(fis);
             Page b = (Page) ois.readObject();
             int min = b.pageData.get(0).clusteringKey;
@@ -123,31 +154,17 @@ public class DBApp {
             ois.close();
             fis.close();
         }
-        int first = high;
-        int second = low;
-        FileInputStream fisFirst = new FileInputStream(first + ".class");
-        FileInputStream fisSecond = new FileInputStream(second + ".class");
-        ObjectInputStream ois1 = new ObjectInputStream(fisFirst);
-        ObjectInputStream ois2 = new ObjectInputStream(fisSecond);
-        Page a = (Page) ois1.readObject();
-        Page b = (Page) ois2.readObject();
 
-        if(second == pagesCount + 1 || a.pageData.size() < maxRows) {
-
-        }
-        else if(first == second) {
-
-        }
-
-
-        return -1;
+        return new int[]{high, low};
     }
 
     public void insertIntoTable(String strTableName,
                                 Hashtable<String,Object> htblColNameValue)
             throws DBAppException, IOException, ParseException {
 
-        verifyBeforeInsert(strTableName, htblColNameValue);
+        Vector<String> keys = new Vector<>();
+        StringBuilder clusteringKeyName = new StringBuilder();
+        verifyBeforeInsert(strTableName, htblColNameValue, keys, clusteringKeyName);
         File tableFolder = new File(strTableName);
         if (tableFolder.isDirectory()) {
             String[] fileNames = tableFolder.list();
