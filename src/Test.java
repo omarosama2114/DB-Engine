@@ -8,7 +8,7 @@ public class Test {
     public static void main(String[] args)
             throws IOException, ClassNotFoundException
     {
-        SerializablePageRecord a = new SerializablePageRecord("GeeksForGeeks");
+        //SerializablePageRecord a = new SerializablePageRecord("GeeksForGeeks");
 
         // Serializing 'a'
         FileOutputStream fos

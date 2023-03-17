@@ -75,7 +75,7 @@ public class DBApp {
                 foundTable = true;
                 keys.add(splitted[1]);
                 if(splitted[3].equals("true")) {
-                    clusteringKeyName = splitted[1];
+                    clusteringKeyName = new StringBuilder(splitted[1]);
                 }
                 if(!htblColNameValue.containsKey(splitted[1])){
                     sc.close();
@@ -102,32 +102,55 @@ public class DBApp {
         }
     }
 
+    public void createPage(String strTableName, Hashtable<String,Object> htblColNameValue, Vector<String> keys,
+                           StringBuilder clusteringKeyName, int pageNumber, SerializablePageRecord a)
+                           throws IOException {
+        Page page = new Page();
+        page.addRecord(a);
+        writeToPage(strTableName, page, pageNumber);
+    }
+
+    public void writeToPage(String strTableName, Page page, int pageNumber) throws IOException {
+        FileOutputStream fos = new FileOutputStream(strTableName + "/" + pageNumber + ".class");
+        ObjectOutputStream oos = new ObjectOutputStream(fos);
+        oos.writeObject(page);
+        oos.close();
+    }
+
     public void insertionHandler(int[] boundaries, int pagesCount, String strTableName,
-             Hashtable<String,Object> htblColNameValue, Vector<String> keys, StringBuilder clusteringKeyName)
-            throws IOException {
+                                 Hashtable<String,Object> htblColNameValue, Vector<String> keys,
+                                 StringBuilder clusteringKeyName)
+                                 throws IOException, ClassNotFoundException {
         int first = boundaries[0];
         int second = boundaries[1];
-        if(pagesCount == 0) {
-            int clusteringKey = (int) htblColNameValue.get(clusteringKeyName.toString());
-            StringBuilder record = new StringBuilder();
-            for(String s : keys) {
-                record.append(htblColNameValue.get(s));
-                record.append(",");
-            }
-            record.deleteCharAt(record.length() - 1);
-            SerializablePageRecord a = new SerializablePageRecord(record.toString() , clusteringKey);
-            Page page = new Page();
-            page.addRecord(a);
-            FileOutputStream fos = new FileOutputStream(strTableName + "/" + "1.class");
-            ObjectOutputStream oos = new ObjectOutputStream(fos);
-            oos.writeObject(page);
-            oos.close();
+        int clusteringKey = (int) htblColNameValue.get(clusteringKeyName.toString());
+        StringBuilder record = new StringBuilder();
+        for(String s : keys) {
+            record.append(htblColNameValue.get(s));
+            record.append(",");
         }
-        
+        record.deleteCharAt(record.length() - 1);
+        SerializablePageRecord a = new SerializablePageRecord(record.toString() , clusteringKey);
+        if(pagesCount == 0) {
+            createPage(strTableName, htblColNameValue, keys, clusteringKeyName, 1 , a);
+        }
+        else if(second == pagesCount + 1) {
+            FileInputStream fis = new FileInputStream(strTableName + "/" + first + ".class");
+            ObjectInputStream ois = new ObjectInputStream(fis);
+            Page b = (Page) ois.readObject();
+
+            if(b.maxRows == b.pageData.size()) {
+                createPage(strTableName, htblColNameValue, keys, clusteringKeyName, first + 1, a);
+            }
+            else {
+                b.addRecord(a);
+                writeToPage(strTableName, b, first);
+            }
+        }
 
     }
 
-    public int[] binarySearch(int pagesCount, int id, int maxRows, String strTableName)
+    public int[] binarySearch(int pagesCount, int id, String strTableName)
             throws IOException, ClassNotFoundException {
         int low = 1;
         int high = pagesCount;
@@ -172,11 +195,6 @@ public class DBApp {
         }
 
 
-        Properties prop = new Properties();
-        String fileName = "DBApp.config";
-        FileInputStream fileInputStream = new FileInputStream(fileName);
-        prop.load(fileInputStream);
-        int maxRow = Integer.parseInt(prop.getProperty("MaximumRowsCountingTablePage"));
 
     }
 
