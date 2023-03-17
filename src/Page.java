@@ -6,7 +6,7 @@ public class Page implements Serializable {
 
     Vector<SerializablePageRecord> pageData;
 
-    public void addRecord(SerializablePageRecord data){
+    public void addRecord(SerializablePageRecord data) {
         pageData.add(data);
     }
 

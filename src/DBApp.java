@@ -11,10 +11,16 @@ public class DBApp {
                             Hashtable<String,String> htblColNameType,
                             Hashtable<String,String> htblColNameMin,
                             Hashtable<String,String> htblColNameMax )
-            throws DBAppException, FileNotFoundException {
+            throws DBAppException, IOException {
 
-        //TODO check if the table already created and create folder whenever table is created.
-        PrintWriter pw = new PrintWriter("meta-data.csv");
+        File theDir = new File(strTableName);
+        if (!theDir.exists()){
+            theDir.mkdirs();
+        }
+        else {
+            throw new DBAppException("Table already exists");
+        }
+        PrintWriter pw = new PrintWriter(new FileWriter("meta-data.csv", true));
         for(String name: htblColNameType.keySet()){
             String type = htblColNameType.get(name);
             if(!htblColNameMax.containsKey(name)) {
@@ -25,12 +31,13 @@ public class DBApp {
             }
             pw.println(strTableName + "," + name + "," + type + "," + (strClusteringKeyColumn.equals(name)) + ",null,null," +
                     htblColNameMin.get(name) + "," + htblColNameMax.get(name));
+
         }
         pw.close();
     }
 
     public void createIndex(String strTableName,
-                            String[] strarrColName) throws DBAppException{
+                            String[] strarrColName) throws DBAppException {
 
     }
 
@@ -66,18 +73,22 @@ public class DBApp {
                 cnt++;
                 foundTable = true;
                 if(!htblColNameValue.containsKey(splitted[1])){
+                    sc.close();
                     throw new DBAppException("Table content does not match");
                 }
                 String type = htblColNameValue.get(splitted[1]).getClass().toString().substring(6);
                 if(!type.equals(splitted[2])){
+                    sc.close();
                     throw new DBAppException("Type Mismatch Error");
                 }
                 Object currentObject = htblColNameValue.get(splitted[1]);
                 if(!checkTypeRange(currentObject, splitted[6], splitted[7])){
+                    sc.close();
                     throw new DBAppException("Ranges Exceeded Error");
                 }
             }
         }
+        sc.close();
         if(cnt != htblColNameValue.size()){
             throw new DBAppException("Input table does not match dimension of original table");
         }
@@ -86,26 +97,63 @@ public class DBApp {
         }
     }
 
+    public int binarySearch(int pagesCount,  int id, int maxRows) throws IOException, ClassNotFoundException {
+        int low = 1;
+        int high = pagesCount;
+        int targetPage = -1;
+        while(low <= high) {
+            int mid = (low + high) / 2;
+            FileInputStream fis = new FileInputStream(mid + ".class");
+            ObjectInputStream ois = new ObjectInputStream(fis);
+            Page b = (Page) ois.readObject();
+            int min = b.pageData.get(0).clusteringKey;
+            int max = b.pageData.get(b.pageData.size() - 1).clusteringKey;
+            if(id < min) {
+                high = mid - 1;
+            }
+            else if(id > max) {
+                low = mid + 1;
+            }
+            else {
+                low = mid;
+                high = mid;
+                break;
+            }
+            // closing stream
+            ois.close();
+            fis.close();
+        }
+        int first = high;
+        int second = low;
+        FileInputStream fisFirst = new FileInputStream(first + ".class");
+        FileInputStream fisSecond = new FileInputStream(second + ".class");
+        ObjectInputStream ois1 = new ObjectInputStream(fisFirst);
+        ObjectInputStream ois2 = new ObjectInputStream(fisSecond);
+        Page a = (Page) ois1.readObject();
+        Page b = (Page) ois2.readObject();
+
+        if(second == pagesCount + 1 || a.pageData.size() < maxRows) {
+
+        }
+        else if(first == second) {
+
+        }
+
+
+        return -1;
+    }
+
     public void insertIntoTable(String strTableName,
                                 Hashtable<String,Object> htblColNameValue)
             throws DBAppException, IOException, ParseException {
 
         verifyBeforeInsert(strTableName, htblColNameValue);
-        //TODO
-        /*
-        String folderName = strTableName; // folder name to check
-        String srcFolderPath = "src"; // path to the src folder
-        File srcFolder = new File(srcFolderPath); // create a File object for the src folder
-        if (srcFolder.isDirectory()) { // check if srcFolder is a directory
-            File[] files = srcFolder.listFiles(); // get a list of files and folders in the src folder
-            for (File file : files) { // iterate through the list of files and folders
-                if (file.isDirectory() && file.getName().equals(folderName)) { // check if the current file is a folder with the specified name
-                    System.out.println("Folder " + folderName + " exists in " + srcFolderPath);
-                    return;
-                }
-            }
+        File tableFolder = new File(strTableName);
+        if (tableFolder.isDirectory()) {
+            String[] fileNames = tableFolder.list();
+            int pagesCount = fileNames.length;
         }
-         */
+
 
         Properties prop = new Properties();
         String fileName = "DBApp.config";
