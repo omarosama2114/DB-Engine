@@ -15,7 +15,7 @@ public class Test {
                 = new FileOutputStream("xyz.class");
         ObjectOutputStream oos
                 = new ObjectOutputStream(fos);
-        oos.writeObject(a);
+        //oos.writeObject(a);
 
         // De-serializing 'a'
         FileInputStream fis

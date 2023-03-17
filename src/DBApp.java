@@ -3,7 +3,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 public class DBApp {
-
+    //TODO TEST THE FUNCTIONALITIES
     public void init(){};
 
     public void createTable(String strTableName,
