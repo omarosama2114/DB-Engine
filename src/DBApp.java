@@ -64,7 +64,7 @@ public class DBApp {
 
     public void verifyBeforeInsert(String strTableName, Hashtable<String,Object> htblColNameValue,
                                    Vector<String> keys, StringBuilder clusteringKeyName)
-            throws DBAppException, FileNotFoundException, ParseException {
+                        throws DBAppException, FileNotFoundException, ParseException {
         boolean foundTable = false;
         Scanner sc = new Scanner(new FileReader("meta-data.csv"));
         int cnt = 0;
@@ -102,8 +102,7 @@ public class DBApp {
         }
     }
 
-    public void createPage(String strTableName, Hashtable<String,Object> htblColNameValue, Vector<String> keys,
-                           StringBuilder clusteringKeyName, int pageNumber, SerializablePageRecord a)
+    public void createPage(String strTableName, int pageNumber, SerializablePageRecord a)
                            throws IOException {
         Page page = new Page();
         page.addRecord(a);
@@ -114,7 +113,53 @@ public class DBApp {
         FileOutputStream fos = new FileOutputStream(strTableName + "/" + pageNumber + ".class");
         ObjectOutputStream oos = new ObjectOutputStream(fos);
         oos.writeObject(page);
+        fos.close();
         oos.close();
+    }
+
+    public Page readFromPage(String strTableName , int pageNum) throws IOException, ClassNotFoundException {
+        FileInputStream fis = new FileInputStream(strTableName + "/" + pageNum + ".class");
+        ObjectInputStream ois = new ObjectInputStream(fis);
+        Page b = (Page) ois.readObject();
+        ois.close();
+        fis.close();
+        return b;
+    }
+
+    public void shift(SerializablePageRecord spr , String strTableName , int pageNum , int maxPages) throws IOException, ClassNotFoundException {
+        Page p = readFromPage(strTableName , pageNum);
+        Vector<SerializablePageRecord> tmp = p.pageData;
+        int low = 0 , high = tmp.size() - 1 , ans = -1;
+        while(low <= high){
+            int mid = (low+high)/2;
+            if(tmp.get(mid).clusteringKey < spr.clusteringKey){
+                low = mid + 1;
+            }
+            else{
+                ans = mid;
+                high = mid - 1;
+            }
+        }
+        if(ans == -1){
+            tmp.add(spr);
+        }
+        else
+            tmp.insertElementAt(spr , ans);
+        int idx = pageNum;
+        SerializablePageRecord sprTmp = null;
+        while(idx <= maxPages){
+            Page currPage = readFromPage(strTableName , idx);
+            if(sprTmp != null) currPage.pageData.insertElementAt(sprTmp , 0);
+            if(currPage.pageData.size() <= currPage.maxRows){
+                sprTmp = null;
+                break;
+            }
+            sprTmp = currPage.pageData.remove(currPage.pageData.size() - 1);
+            idx++;
+        }
+        if(sprTmp != null){
+            createPage(strTableName , idx , sprTmp);
+        }
     }
 
     public void insertionHandler(int[] boundaries, int pagesCount, String strTableName,
@@ -132,22 +177,22 @@ public class DBApp {
         record.deleteCharAt(record.length() - 1);
         SerializablePageRecord a = new SerializablePageRecord(record.toString() , clusteringKey);
         if(pagesCount == 0) {
-            createPage(strTableName, htblColNameValue, keys, clusteringKeyName, 1 , a);
+            createPage(strTableName, 1 , a);
         }
         else if(second == pagesCount + 1) {
-            FileInputStream fis = new FileInputStream(strTableName + "/" + first + ".class");
-            ObjectInputStream ois = new ObjectInputStream(fis);
-            Page b = (Page) ois.readObject();
-
+            Page b = readFromPage(strTableName , first);
             if(b.maxRows == b.pageData.size()) {
-                createPage(strTableName, htblColNameValue, keys, clusteringKeyName, first + 1, a);
+                createPage(strTableName ,first + 1, a);
             }
             else {
                 b.addRecord(a);
                 writeToPage(strTableName, b, first);
             }
         }
-
+        else{
+            if(first == 0) first++;
+            shift(a , strTableName , first , pagesCount);
+        }
     }
 
     public int[] binarySearch(int pagesCount, int id, String strTableName)
@@ -157,9 +202,7 @@ public class DBApp {
         int targetPage = -1;
         while(low <= high) {
             int mid = (low + high) / 2;
-            FileInputStream fis = new FileInputStream(strTableName + "/" + mid + ".class");
-            ObjectInputStream ois = new ObjectInputStream(fis);
-            Page b = (Page) ois.readObject();
+            Page b = readFromPage(strTableName , mid);
             int min = b.pageData.get(0).clusteringKey;
             int max = b.pageData.get(b.pageData.size() - 1).clusteringKey;
             if(id < min) {
@@ -173,9 +216,6 @@ public class DBApp {
                 high = mid;
                 break;
             }
-            // closing stream
-            ois.close();
-            fis.close();
         }
 
         return new int[]{high, low};
