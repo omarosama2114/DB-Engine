@@ -14,7 +14,7 @@ public class Page implements Serializable {
     public Page() throws IOException {
         pageData = new Vector<>();
         Properties prop = new Properties();
-        String fileName = "DBApp.config";
+        String fileName = "src/DBApp.config";
         FileInputStream fileInputStream = new FileInputStream(fileName);
         prop.load(fileInputStream);
         maxRows = Integer.parseInt(prop.getProperty("MaximumRowsCountingTablePage"));
