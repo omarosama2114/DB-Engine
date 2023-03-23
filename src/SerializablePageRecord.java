@@ -1,24 +1,15 @@
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.Vector;
 
-public class SerializablePageRecord implements Serializable, Comparable {
+public class SerializablePageRecord implements Serializable {
 
-    String afterSerialization;
-    int clusteringKey;
+    Hashtable<String, Object> recordHash;
+    Comparable clusteringKey;
 
-    Vector<String> keys;
-    public SerializablePageRecord(String values, int clusteringKey) {
-        this.afterSerialization = values;
+    public SerializablePageRecord(Hashtable<String, Object> recordHash, Comparable clusteringKey) {
+        this.recordHash = (Hashtable<String, Object>) recordHash.clone();
         this.clusteringKey = clusteringKey;
-    }
-
-    public String toString() {
-        return afterSerialization;
-    }
-
-    @Override
-    public int compareTo(Object o) {
-        return this.clusteringKey - ((SerializablePageRecord) o).clusteringKey;
     }
 }

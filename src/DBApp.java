@@ -7,7 +7,7 @@ public class DBApp {
     public void init() {
     }
 
-    ;
+
 
     public void createTable(String strTableName,
                             String strClusteringKeyColumn,
@@ -65,7 +65,7 @@ public class DBApp {
     }
 
     public void verifyBeforeInsert(String strTableName, Hashtable<String, Object> htblColNameValue,
-                                   Vector<String> keys, StringBuilder clusteringKeyName)
+                                   StringBuilder clusteringKeyName)
             throws DBAppException, FileNotFoundException, ParseException {
         boolean foundTable = false;
         Scanner sc = new Scanner(new FileReader("meta-data.csv"));
@@ -75,7 +75,6 @@ public class DBApp {
             if (splitted[0].equals(strTableName)) {
                 cnt++;
                 foundTable = true;
-                keys.add(splitted[1]);
                 if (splitted[3].equals("true")) {
                     clusteringKeyName.append(splitted[1]);
                 }
@@ -129,12 +128,12 @@ public class DBApp {
         return b;
     }
 
-    public int recordBinarySearch(Vector<SerializablePageRecord> records, int clusteringKey)
+    public int recordBinarySearch(Vector<SerializablePageRecord> records, Comparable clusteringKey)
             throws IOException, ClassNotFoundException {
         int low = 0, high = records.size() - 1, ans = -1;
         while (low <= high) {
             int mid = (low + high) / 2;
-            if (records.get(mid).clusteringKey < clusteringKey) {
+            if (records.get(mid).clusteringKey.compareTo(clusteringKey) < 0) {
                 low = mid + 1;
             } else {
                 ans = mid;
@@ -175,25 +174,19 @@ public class DBApp {
     }
 
     public SerializablePageRecord createRecord(Hashtable<String, Object> htblColNameValue,
-                                               int clusteringKey, Vector<String> keys) {
-        StringBuilder record = new StringBuilder();
-        for (String s : keys) {
-            record.append(htblColNameValue.getOrDefault(s, clusteringKey));
-            record.append(",");
-        }
-        record.deleteCharAt(record.length() - 1);
-        SerializablePageRecord a = new SerializablePageRecord(record.toString(), clusteringKey);
+                                               Comparable clusteringKey) {
+        SerializablePageRecord a = new SerializablePageRecord(htblColNameValue, clusteringKey);
         return a;
     }
 
     public void insertionHandler(int[] boundaries, int pagesCount, String strTableName,
-                                 Hashtable<String, Object> htblColNameValue, Vector<String> keys,
+                                 Hashtable<String, Object> htblColNameValue,
                                  StringBuilder clusteringKeyName)
             throws IOException, ClassNotFoundException {
         int first = boundaries[0];
         int second = boundaries[1];
-        int clusteringKey = (int) htblColNameValue.get(clusteringKeyName.toString());
-        SerializablePageRecord a = createRecord(htblColNameValue, clusteringKey, keys);
+        Comparable clusteringKey = (Comparable) htblColNameValue.get(clusteringKeyName.toString());
+        SerializablePageRecord a = createRecord(htblColNameValue, clusteringKey);
         if (pagesCount == 0) {
             createPage(strTableName, 1, a);
         } else if (second == pagesCount + 1) {
@@ -210,7 +203,7 @@ public class DBApp {
         }
     }
 
-    public int[] pagesBinarySearch(int pagesCount, int id, String strTableName)
+    public int[] pagesBinarySearch(int pagesCount, Comparable id, String strTableName)
             throws IOException, ClassNotFoundException {
         int low = 1;
         int high = pagesCount;
@@ -218,11 +211,11 @@ public class DBApp {
         while (low <= high) {
             int mid = (low + high) / 2;
             Page b = readFromPage(strTableName, mid);
-            int min = b.pageData.get(0).clusteringKey;
-            int max = b.pageData.get(b.pageData.size() - 1).clusteringKey;
-            if (id < min) {
+            Comparable min = b.pageData.get(0).clusteringKey;
+            Comparable max = b.pageData.get(b.pageData.size() - 1).clusteringKey;
+            if (id.compareTo(min) < 0) {
                 high = mid - 1;
-            } else if (id > max) {
+            } else if (id.compareTo(max) > 0) {
                 low = mid + 1;
             } else {
                 low = mid;
@@ -245,17 +238,16 @@ public class DBApp {
     public void insertIntoTable(String strTableName,
                                 Hashtable<String, Object> htblColNameValue)
             throws DBAppException, IOException, ParseException, ClassNotFoundException {
-        Vector<String> keys = new Vector<>();
         StringBuilder clusteringKeyName = new StringBuilder();
-        verifyBeforeInsert(strTableName, htblColNameValue, keys, clusteringKeyName);
+        verifyBeforeInsert(strTableName, htblColNameValue, clusteringKeyName);
         int pagesCount = getTableSize(strTableName);
-        int[] boundaries = pagesBinarySearch(pagesCount, (int) htblColNameValue.get(clusteringKeyName.toString()), strTableName);
-        insertionHandler(boundaries, pagesCount, strTableName, htblColNameValue, keys, clusteringKeyName);
+        int[] boundaries = pagesBinarySearch(pagesCount, (Comparable) htblColNameValue.get(clusteringKeyName.toString()), strTableName);
+        insertionHandler(boundaries, pagesCount, strTableName, htblColNameValue, clusteringKeyName);
 
     }
 
     public void verifyBeforeUpdate(String strTableName, Hashtable<String, Object> htblColNameValue,
-                                   Vector<String> keys, int clusteringKeyValue)
+                                   Object clusteringKeyValue)
             throws DBAppException, FileNotFoundException, ParseException {
 
         boolean foundTable = false;
@@ -267,7 +259,6 @@ public class DBApp {
                 if (!splitted[3].equals("true"))
                     cnt++;
                 foundTable = true;
-                keys.add(splitted[1]);
                 if (!htblColNameValue.containsKey(splitted[1]) && splitted[3].equals("false")) {
                     sc.close();
                     throw new DBAppException("Table content does not match");
@@ -293,22 +284,21 @@ public class DBApp {
         }
     }
 
-
+    //Reminder: setting strClusteringKeyValue to Object instead of String.
     public void updateTable(String strTableName,
-                            String strClusteringKeyValue,
+                            Object strClusteringKeyValue,
                             Hashtable<String, Object> htblColNameValue)
             throws DBAppException, IOException, ClassNotFoundException, ParseException {
         int pagesCount = getTableSize(strTableName);
-        Vector<String> keys = new Vector<>();
-        int clusteringKey = Integer.parseInt(strClusteringKeyValue);
-        verifyBeforeUpdate(strTableName, htblColNameValue, keys, clusteringKey);
+        Comparable clusteringKey = (Comparable) strClusteringKeyValue;
+        verifyBeforeUpdate(strTableName, htblColNameValue, clusteringKey);
         int[] boundaries = pagesBinarySearch(pagesCount, clusteringKey, strTableName);
         Page p = readFromPage(strTableName, boundaries[0]);
         int idx = recordBinarySearch(p.pageData, clusteringKey);
         SerializablePageRecord spr = p.pageData.get(idx);
-        if (spr.clusteringKey != clusteringKey)
+        if (spr.clusteringKey.compareTo(clusteringKey) != 0)
             throw new DBAppException("Clustering Key does not exist");
-        SerializablePageRecord newRecord = createRecord(htblColNameValue, clusteringKey, keys);
+        SerializablePageRecord newRecord = createRecord(htblColNameValue, clusteringKey);
         p.pageData.set(idx, newRecord);
         writeToPage(strTableName, p, boundaries[0]);
     }
