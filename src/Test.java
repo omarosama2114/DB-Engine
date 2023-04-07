@@ -1,30 +1,23 @@
-// Java program to illustrate Serializable interface
-import java.io.*;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.ObjectInputStream;
 
-// By implementing Serializable interface
-// we make sure that state of instances of class A
-// can be saved in a file.
 public class Test {
-    public static void main(String[] args)
-            throws IOException, ClassNotFoundException
-    {
-        //SerializablePageRecord a = new SerializablePageRecord("GeeksForGeeks");
 
-        // Serializing 'a'
-        FileOutputStream fos
-                = new FileOutputStream("xyz.class");
-        ObjectOutputStream oos
-                = new ObjectOutputStream(fos);
-        //oos.writeObject(a);
-
-        // De-serializing 'a'
-        FileInputStream fis
-                = new FileInputStream("xyz.class");
+    public static void main(String[] args) throws IOException, ClassNotFoundException {
+        FileInputStream fis = new FileInputStream("Student/1.class");
         ObjectInputStream ois = new ObjectInputStream(fis);
-        SerializablePageRecord b = (SerializablePageRecord) ois.readObject(); // down-casting object
-        //System.out.println(b.afterSerialization);
-        // closing streams
-        oos.close();
+        Page b = (Page) ois.readObject();
+        for(SerializablePageRecord s : b.pageData){
+            for(String key : s.recordHash.keySet()){
+                System.out.println(key + " " + s.recordHash.get(key));
+            }
+            System.out.println("=========");
+        }
+
         ois.close();
+        fis.close();
     }
+
 }
