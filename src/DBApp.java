@@ -296,12 +296,37 @@ public class DBApp {
     }
 
     //Reminder: setting strClusteringKeyValue to Object instead of String.
+    public Object getKey(String clusteringKeyValue, String strTableName) throws FileNotFoundException, ParseException, DBAppException {
+        Scanner sc = new Scanner(new FileReader("meta-data.csv"));
+        int cnt = 0;
+        while (sc.hasNext()) {
+            String[] splitted = sc.next().split(",");
+            if (splitted[0].equals(strTableName)) {
+                if (splitted[3].equals("true")){
+                    String now = splitted[2];
+                    if(now.contains("Double")){
+                        return Double.parseDouble(clusteringKeyValue);
+                    }else if(now.contains("Integer")){
+                        return Integer.parseInt(clusteringKeyValue);
+                    }else if(now.contains("String")){
+                        return clusteringKeyValue;
+                    }else{
+                        return new SimpleDateFormat("yyyy-MM-dd").parse(clusteringKeyValue);
+                    }
+                }
+            }
+        }
+        sc.close();
+        throw new DBAppException("Clustering Key Parse problem");
+    }
+
+    //Reminder: setting strClusteringKeyValue to Object instead of String.
     public void updateTable(String strTableName,
-                            Object strClusteringKeyValue,
+                            String strClusteringKeyValue,
                             Hashtable<String, Object> htblColNameValue)
             throws DBAppException, IOException, ClassNotFoundException, ParseException {
         int pagesCount = getTableSize(strTableName);
-        Comparable clusteringKey = (Comparable) strClusteringKeyValue;
+        Comparable clusteringKey = (Comparable) getKey(strClusteringKeyValue, strTableName);
         verifyBeforeUpdate(strTableName, htblColNameValue, clusteringKey);
         int[] boundaries = pagesBinarySearch(pagesCount, clusteringKey, strTableName);
         Page p = readFromPage(strTableName, boundaries[0]);
@@ -328,51 +353,51 @@ public class DBApp {
      */
 
     public static void main(String[] args) throws DBAppException, IOException, ParseException, ClassNotFoundException {
-        String strTableName = "Student";
-        DBApp dbApp = new DBApp( );
-        /*Hashtable htblColNameType = new Hashtable( );
-        htblColNameType.put("id", "java.lang.Integer");
-        htblColNameType.put("name", "java.lang.String");
-        htblColNameType.put("gpa", "java.lang.Double");
-        Hashtable htblColNameMin = new Hashtable();
-        htblColNameMin.put("id", "0");
-        htblColNameMin.put("name", "A");
-        htblColNameMin.put("gpa", "0");
-        Hashtable htblColNameMax = new Hashtable();
-        htblColNameMax.put("id", "100000000");
-        htblColNameMax.put("name", "ZZZZZZZZZZZZZZZZZ");
-        htblColNameMax.put("gpa", "10000000");
-        dbApp.createTable( strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);*/
-        Hashtable htblColNameValue = new Hashtable( );
-        /*htblColNameValue.put("id", new Integer( 2343432 ));
-        htblColNameValue.put("name", new String("Ahmed Noor" ) );
-        htblColNameValue.put("gpa", new Double( 0.95 ) );
-        dbApp.insertIntoTable( strTableName , htblColNameValue );*/
-        /*htblColNameValue.clear( );
-        htblColNameValue.put("id", new Integer( 453455 ));
-        htblColNameValue.put("name", new String("Ahmed Noor" ) );
-        htblColNameValue.put("gpa", new Double( 0.95 ) );
-        dbApp.insertIntoTable( strTableName , htblColNameValue );
-        htblColNameValue.clear( );
-        htblColNameValue.put("id", new Integer( 5674567 ));
-        htblColNameValue.put("name", new String("Dalia Noor" ) );
-        htblColNameValue.put("gpa", new Double( 1.25 ) );
-        dbApp.insertIntoTable( strTableName , htblColNameValue );
-        htblColNameValue.clear( );
-        htblColNameValue.put("id", new Integer( 23498 ));
-        htblColNameValue.put("name", new String("John Noor" ) );
-        htblColNameValue.put("gpa", new Double( 1.5 ) );
-        dbApp.insertIntoTable( strTableName , htblColNameValue );
-        htblColNameValue.clear( );
-        htblColNameValue.put("id", new Integer( 78452 ));
-        htblColNameValue.put("name", new String("ZAKY NOOR" ) );
-        htblColNameValue.put("gpa", new Double( 0.88 ) );
-        dbApp.insertIntoTable( strTableName , htblColNameValue );*/
-        htblColNameValue.clear();
-        htblColNameValue.put("name", new String("ZAKY NOOR" ));
-        htblColNameValue.put("gpa", new Double( 1.23));
-
-        dbApp.updateTable(strTableName, 78452, htblColNameValue);
+//        String strTableName = "Student";
+//        DBApp dbApp = new DBApp( );
+//        Hashtable htblColNameType = new Hashtable( );
+//        htblColNameType.put("id", "java.lang.Integer");
+//        htblColNameType.put("name", "java.lang.String");
+//        htblColNameType.put("gpa", "java.lang.Double");
+//        Hashtable htblColNameMin = new Hashtable();
+//        htblColNameMin.put("id", "0");
+//        htblColNameMin.put("name", "A");
+//        htblColNameMin.put("gpa", "0");
+//        Hashtable htblColNameMax = new Hashtable();
+//        htblColNameMax.put("id", "100000000");
+//        htblColNameMax.put("name", "ZZZZZZZZZZZZZZZZZ");
+//        htblColNameMax.put("gpa", "10000000");
+//        dbApp.createTable( strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
+//        Hashtable htblColNameValue = new Hashtable( );
+//        htblColNameValue.put("id", new Integer( 2343432 ));
+//        htblColNameValue.put("name", new String("Ahmed Noor" ) );
+//        htblColNameValue.put("gpa", new Double( 0.95 ) );
+//        dbApp.insertIntoTable( strTableName , htblColNameValue );
+//        htblColNameValue.clear( );
+//        htblColNameValue.put("id", new Integer( 453455 ));
+//        htblColNameValue.put("name", new String("Ahmed Noor" ) );
+//        htblColNameValue.put("gpa", new Double( 0.95 ) );
+//        dbApp.insertIntoTable( strTableName , htblColNameValue );
+//        htblColNameValue.clear( );
+//        htblColNameValue.put("id", new Integer( 5674567 ));
+//        htblColNameValue.put("name", new String("Dalia Noor" ) );
+//        htblColNameValue.put("gpa", new Double( 1.25 ) );
+//        dbApp.insertIntoTable( strTableName , htblColNameValue );
+//        htblColNameValue.clear( );
+//        htblColNameValue.put("id", new Integer( 23498 ));
+//        htblColNameValue.put("name", new String("John Noor" ) );
+//        htblColNameValue.put("gpa", new Double( 1.5 ) );
+//        dbApp.insertIntoTable( strTableName , htblColNameValue );
+//        htblColNameValue.clear( );
+//        htblColNameValue.put("id", new Integer( 78452 ));
+//        htblColNameValue.put("name", new String("ZAKY NOOR" ) );
+//        htblColNameValue.put("gpa", new Double( 0.88 ) );
+//        dbApp.insertIntoTable( strTableName , htblColNameValue );
+//        htblColNameValue.clear();
+//        htblColNameValue.put("name", new String("ZAKY NOOR" ));
+//        htblColNameValue.put("gpa", new Double( 1.23));
+//
+//        dbApp.updateTable(strTableName, "78452", htblColNameValue);
 
     }
 }

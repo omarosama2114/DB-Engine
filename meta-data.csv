@@ -1,3 +1,6 @@
 Student,gpa,java.lang.Double,false,null,null,0,10000000
 Student,name,java.lang.String,false,null,null,A,ZZZZZZZZZZZZZZZZZ
 Student,id,java.lang.Integer,true,null,null,0,100000000
+Student1,gpa,java.lang.Double,false,null,null,0,10000000
+Student1,name,java.lang.String,false,null,null,A,ZZZZZZZZZZZZZZZZZ
+Student1,id,java.lang.String,true,null,null,A,zzzzzzzzzzzzz
