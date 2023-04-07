@@ -322,8 +322,8 @@ public class DBApp {
         SerializablePageRecord spr = p.pageData.get(idx);
         if (spr.clusteringKey.compareTo(clusteringKey) != 0)
             throw new DBAppException("Clustering Key does not exist");
-        SerializablePageRecord newRecord = createRecord(htblColNameValue, clusteringKey);
-        p.pageData.set(idx, newRecord);
+        for(String key : htblColNameValue.keySet())
+            spr.recordHash.put(key, htblColNameValue.get(key));
         writeToPage(strTableName, p, boundaries[0]);
     }
 
