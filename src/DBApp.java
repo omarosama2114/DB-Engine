@@ -284,13 +284,37 @@ public class DBApp {
         }
     }
 
+    public Object getKey(String clusteringKeyValue, String strTableName) throws FileNotFoundException, ParseException, DBAppException {
+        Scanner sc = new Scanner(new FileReader("meta-data.csv"));
+        int cnt = 0;
+        while (sc.hasNext()) {
+            String[] splitted = sc.next().split(",");
+            if (splitted[0].equals(strTableName)) {
+                if (splitted[3].equals("true")){
+                    String now = splitted[2];
+                    if(now.contains("Double")){
+                        return Double.parseDouble(clusteringKeyValue);
+                    }else if(now.contains("Integer")){
+                        return Integer.parseInt(clusteringKeyValue);
+                    }else if(now.contains("String")){
+                        return clusteringKeyValue;
+                    }else{
+                        return new SimpleDateFormat("yyyy-MM-dd").parse(clusteringKeyValue);
+                    }
+                }
+            }
+        }
+        sc.close();
+        throw new DBAppException("Clustering Key Parse problem");
+    }
+
     //Reminder: setting strClusteringKeyValue to Object instead of String.
     public void updateTable(String strTableName,
-                            Object strClusteringKeyValue,
+                            String strClusteringKeyValue,
                             Hashtable<String, Object> htblColNameValue)
             throws DBAppException, IOException, ClassNotFoundException, ParseException {
         int pagesCount = getTableSize(strTableName);
-        Comparable clusteringKey = (Comparable) strClusteringKeyValue;
+        Comparable clusteringKey = (Comparable) getKey(strClusteringKeyValue, strTableName);
         verifyBeforeUpdate(strTableName, htblColNameValue, clusteringKey);
         int[] boundaries = pagesBinarySearch(pagesCount, clusteringKey, strTableName);
         Page p = readFromPage(strTableName, boundaries[0]);
@@ -306,6 +330,8 @@ public class DBApp {
     public void deleteFromTable(String strTableName,
                                 Hashtable<String, Object> htblColNameValue)
             throws DBAppException {
+
+
     }
 
     /*public Iterator selectFromTable(SQLTerm[] arrSQLTerms,
