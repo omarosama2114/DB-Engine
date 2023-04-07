@@ -22,7 +22,7 @@ public class Test {
                 = new FileInputStream("xyz.class");
         ObjectInputStream ois = new ObjectInputStream(fis);
         SerializablePageRecord b = (SerializablePageRecord) ois.readObject(); // down-casting object
-        System.out.println(b.afterSerialization);
+        //System.out.println(b.afterSerialization);
         // closing streams
         oos.close();
         ois.close();

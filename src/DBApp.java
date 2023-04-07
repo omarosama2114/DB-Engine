@@ -1,4 +1,6 @@
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -327,9 +329,101 @@ public class DBApp {
         writeToPage(strTableName, p, boundaries[0]);
     }
 
+    public String getClusteringKeyName(String strTableName) throws FileNotFoundException, DBAppException {
+        Scanner sc = new Scanner(new FileReader("meta-data.csv"));
+        while (sc.hasNext()) {
+            String[] splitted = sc.next().split(",");
+            if (splitted[0].equals(strTableName)) {
+                if (splitted[3].equals("true"))
+                    return splitted[1];
+            }
+        }
+        sc.close();
+        throw new DBAppException("Table Not Found Or Table with No Clustering Key");
+    }
+
+
+    public void deleteEntirePage(String strTableName, Vector<Integer> pagesIdx) throws IOException, ClassNotFoundException {
+        for(int idx: pagesIdx){
+            Files.delete(Path.of(strTableName + "/" + idx + ".class"));
+        }
+    }
+
+    public void renameFile(String strTableName, int oldIdx, int newIdx) {
+        File oldFile = new File(strTableName + "/" + oldIdx + ".class");
+        File newFile = new File(strTableName + "/" + newIdx + ".class");
+        oldFile.renameTo(newFile);
+    }
     public void deleteFromTable(String strTableName,
                                 Hashtable<String, Object> htblColNameValue)
-            throws DBAppException {
+            throws DBAppException, IOException, ClassNotFoundException {
+
+        String clusteringKeyName = getClusteringKeyName(strTableName);
+        int pagesCount = getTableSize(strTableName);
+
+        if(htblColNameValue.isEmpty()){
+            int size = getTableSize(strTableName);
+            Vector<Integer> toBeDeleted = new Vector<>();
+            for(int i = 1; i<=size; i++) {
+                toBeDeleted.add(i);
+            }
+            deleteEntirePage(strTableName, toBeDeleted);
+        }else if(htblColNameValue.containsKey(clusteringKeyName)) {
+            int[] boundaries = pagesBinarySearch(pagesCount, (Comparable) htblColNameValue.get(clusteringKeyName), strTableName);
+            boolean matched = true;
+            if (boundaries[0] != boundaries[1]) {
+                matched = false;
+            }
+
+            Page currentPage = readFromPage(strTableName, boundaries[0]);
+            int idx = recordBinarySearch(currentPage.pageData, (Comparable) htblColNameValue.get(clusteringKeyName));
+            if (idx == -1 || currentPage.maxRows <= idx || !currentPage.pageData.get(idx).clusteringKey.equals(htblColNameValue.get(clusteringKeyName))) {
+                matched = false;
+            }
+
+            SerializablePageRecord currentRecord = currentPage.pageData.get(idx);
+            for (String key : currentRecord.recordHash.keySet()) {
+                if (htblColNameValue.containsKey(key) && !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key))) {
+                    matched = false;
+                }
+            }
+            if(matched) {
+                currentPage.pageData.remove(idx);
+            }
+        }else {
+            Vector<Integer> toBeDeleted = new Vector<>();
+            HashSet<Integer> found = new HashSet<>();
+            for(int i = 1; i<=pagesCount; i++){
+                Page currentPage = readFromPage(strTableName, i);
+                for(SerializablePageRecord currentRecord: (ArrayList<SerializablePageRecord>) currentPage.pageData.clone()){
+                    boolean matched = true;
+                    for (String key : currentRecord.recordHash.keySet()) {
+                        if (htblColNameValue.containsKey(key) && !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key))) {
+                            matched = false;
+                        }
+                    }
+                    if(matched){
+                        currentPage.pageData.remove(currentRecord);
+                    }
+                }
+                if(currentPage.pageData.isEmpty()){
+                    toBeDeleted.add(i);
+                    found.add(i);
+                }else{
+                    writeToPage(strTableName, currentPage, i);
+                }
+            }
+            deleteEntirePage(strTableName, toBeDeleted);
+            int cnt = 0;
+            for(int i = 1; i<=pagesCount; i++){
+                if(found.contains(i)){
+                    cnt++;
+                }else{
+                    renameFile(strTableName, i, i - cnt);
+                }
+            }
+
+        }
 
 
     }
