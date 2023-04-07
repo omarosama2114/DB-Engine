@@ -371,42 +371,50 @@ public class DBApp {
 
         String clusteringKeyName = getClusteringKeyName(strTableName);
         int pagesCount = getTableSize(strTableName);
-
+        Vector<Integer> toBeDeleted = new Vector<>();
+        HashSet<Integer> found = new HashSet<>();
         if(htblColNameValue.isEmpty()){
             int size = getTableSize(strTableName);
-            Vector<Integer> toBeDeleted = new Vector<>();
             for(int i = 1; i<=size; i++) {
                 toBeDeleted.add(i);
             }
-            deleteEntirePage(strTableName, toBeDeleted);
         }else if(htblColNameValue.containsKey(clusteringKeyName)) {
             int[] boundaries = pagesBinarySearch(pagesCount, (Comparable) htblColNameValue.get(clusteringKeyName), strTableName);
             boolean matched = true;
             if (boundaries[0] != boundaries[1]) {
                 matched = false;
+                return;
             }
 
             Page currentPage = readFromPage(strTableName, boundaries[0]);
             int idx = recordBinarySearch(currentPage.pageData, (Comparable) htblColNameValue.get(clusteringKeyName));
             if (idx == -1 || currentPage.maxRows <= idx || !currentPage.pageData.get(idx).clusteringKey.equals(htblColNameValue.get(clusteringKeyName))) {
                 matched = false;
+                return;
             }
 
             SerializablePageRecord currentRecord = currentPage.pageData.get(idx);
             for (String key : currentRecord.recordHash.keySet()) {
                 if (htblColNameValue.containsKey(key) && !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key))) {
                     matched = false;
+                    return;
                 }
             }
             if(matched) {
                 currentPage.pageData.remove(idx);
             }
+
+            if(currentPage.pageData.isEmpty()){
+                toBeDeleted.add(boundaries[0]);
+                found.add(boundaries[0]);
+            }else{
+                writeToPage(strTableName, currentPage, boundaries[0]);
+            }
+
         }else {
-            Vector<Integer> toBeDeleted = new Vector<>();
-            HashSet<Integer> found = new HashSet<>();
             for(int i = 1; i<=pagesCount; i++){
                 Page currentPage = readFromPage(strTableName, i);
-                for(SerializablePageRecord currentRecord: (ArrayList<SerializablePageRecord>) currentPage.pageData.clone()){
+                for(SerializablePageRecord currentRecord: (Vector<SerializablePageRecord>) currentPage.pageData.clone()){
                     boolean matched = true;
                     for (String key : currentRecord.recordHash.keySet()) {
                         if (htblColNameValue.containsKey(key) && !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key))) {
@@ -424,17 +432,17 @@ public class DBApp {
                     writeToPage(strTableName, currentPage, i);
                 }
             }
-            deleteEntirePage(strTableName, toBeDeleted);
-            int cnt = 0;
-            for(int i = 1; i<=pagesCount; i++){
-                if(found.contains(i)){
-                    cnt++;
-                }else{
-                    renameFile(strTableName, i, i - cnt);
-                }
-            }
-
         }
+        deleteEntirePage(strTableName, toBeDeleted);
+        int cnt = 0;
+        for(int i = 1; i<=pagesCount; i++){
+            if(found.contains(i)){
+                cnt++;
+            }else if(cnt > 0){
+                renameFile(strTableName, i, i - cnt);
+            }
+        }
+
 
 
     }
