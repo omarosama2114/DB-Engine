@@ -1,6 +1,7 @@
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -16,7 +17,7 @@ public class DBApp {
                             Hashtable<String, String> htblColNameType,
                             Hashtable<String, String> htblColNameMin,
                             Hashtable<String, String> htblColNameMax)
-            throws DBAppException, IOException {
+            throws DBAppException {
 
         File theDir = new File(strTableName);
         if (!theDir.exists()) {
@@ -24,20 +25,27 @@ public class DBApp {
         } else {
             throw new DBAppException("Table already exists");
         }
-        PrintWriter pw = new PrintWriter(new FileWriter("meta-data.csv", true));
-        for (String name : htblColNameType.keySet()) {
-            String type = htblColNameType.get(name);
-            if (!htblColNameMax.containsKey(name)) {
-                throw new DBAppException("No Such key in htbColNameMax");
-            }
-            if (!htblColNameMin.containsKey(name)) {
-                throw new DBAppException("No Such key in htbColNameMin");
-            }
-            pw.println(strTableName + "," + name + "," + type + "," + (strClusteringKeyColumn.equals(name)) + ",null,null," +
-                    htblColNameMin.get(name) + "," + htblColNameMax.get(name));
+        PrintWriter pw = null;
+        try {
+            pw = new PrintWriter(new FileWriter("meta-data.csv", true));
+            for (String name : htblColNameType.keySet()) {
+                String type = htblColNameType.get(name);
+                if (!htblColNameMax.containsKey(name)) {
+                    throw new DBAppException("No Such key in htbColNameMax");
+                }
+                if (!htblColNameMin.containsKey(name)) {
+                    throw new DBAppException("No Such key in htbColNameMin");
+                }
+                pw.println(strTableName + "," + name + "," + type + "," + (strClusteringKeyColumn.equals(name)) + ",null,null," +
+                htblColNameMin.get(name) + "," + htblColNameMax.get(name));
 
+            }
+        } catch (IOException e) {
+            throw new DBAppException("Failed to output data to the meta-data file.");
+        }finally{
+            if(pw != null)
+                pw.close();
         }
-        pw.close();
     }
 
     public void createIndex(String strTableName,
@@ -249,12 +257,20 @@ public class DBApp {
 
     public void insertIntoTable(String strTableName,
                                 Hashtable<String, Object> htblColNameValue)
-            throws DBAppException, IOException, ParseException, ClassNotFoundException {
+            throws DBAppException {
         StringBuilder clusteringKeyName = new StringBuilder();
-        verifyBeforeInsert(strTableName, htblColNameValue, clusteringKeyName);
-        int pagesCount = getTableSize(strTableName);
-        int[] boundaries = pagesBinarySearch(pagesCount, (Comparable) htblColNameValue.get(clusteringKeyName.toString()), strTableName);
-        insertionHandler(boundaries, pagesCount, strTableName, htblColNameValue, clusteringKeyName);
+        try {
+            verifyBeforeInsert(strTableName, htblColNameValue, clusteringKeyName);
+            int pagesCount = getTableSize(strTableName);
+            int[] boundaries = pagesBinarySearch(pagesCount, (Comparable) htblColNameValue.get(clusteringKeyName.toString()), strTableName);
+            insertionHandler(boundaries, pagesCount, strTableName, htblColNameValue, clusteringKeyName);
+        } catch (ClassNotFoundException e) {
+            throw new DBAppException("ClassNotFoundException was thrown.");
+        } catch (IOException e) {
+            throw new DBAppException("Problem with IO happened.");
+        } catch (ParseException e) {
+            throw new DBAppException("Parse exception occurred.");
+        }
 
     }
 
@@ -325,19 +341,27 @@ public class DBApp {
     public void updateTable(String strTableName,
                             String strClusteringKeyValue,
                             Hashtable<String, Object> htblColNameValue)
-            throws DBAppException, IOException, ClassNotFoundException, ParseException {
-        int pagesCount = getTableSize(strTableName);
-        Comparable clusteringKey = (Comparable) getKey(strClusteringKeyValue, strTableName);
-        verifyBeforeUpdate(strTableName, htblColNameValue, clusteringKey);
-        int[] boundaries = pagesBinarySearch(pagesCount, clusteringKey, strTableName);
-        Page p = readFromPage(strTableName, boundaries[0]);
-        int idx = recordBinarySearch(p.pageData, clusteringKey);
-        SerializablePageRecord spr = p.pageData.get(idx);
-        if (spr.clusteringKey.compareTo(clusteringKey) != 0)
-            throw new DBAppException("Clustering Key does not exist");
-        for(String key : htblColNameValue.keySet())
-            spr.recordHash.put(key, htblColNameValue.get(key));
-        writeToPage(strTableName, p, boundaries[0]);
+            throws DBAppException {
+        try {
+            int pagesCount = getTableSize(strTableName);
+            Comparable clusteringKey = (Comparable) getKey(strClusteringKeyValue, strTableName);
+            verifyBeforeUpdate(strTableName, htblColNameValue, clusteringKey);
+            int[] boundaries = pagesBinarySearch(pagesCount, clusteringKey, strTableName);
+            Page p = readFromPage(strTableName, boundaries[0]);
+            int idx = recordBinarySearch(p.pageData, clusteringKey);
+            SerializablePageRecord spr = p.pageData.get(idx);
+            if (spr.clusteringKey.compareTo(clusteringKey) != 0)
+                throw new DBAppException("Clustering Key does not exist");
+            for(String key : htblColNameValue.keySet())
+                spr.recordHash.put(key, htblColNameValue.get(key));
+            writeToPage(strTableName, p, boundaries[0]);
+        } catch (ClassNotFoundException e) {
+            throw new DBAppException("ClassNotFoundException was thrown.");
+        } catch (IOException e) {
+            throw new DBAppException("Problem with IO happened.");
+        } catch (ParseException e) {
+            throw new DBAppException("Parse exception occurred.");
+        }
     }
 
     public String getClusteringKeyName(String strTableName) throws FileNotFoundException, DBAppException {
@@ -367,137 +391,143 @@ public class DBApp {
     }
     public void deleteFromTable(String strTableName,
                                 Hashtable<String, Object> htblColNameValue)
-            throws DBAppException, IOException, ClassNotFoundException {
+            throws DBAppException {
 
-        String clusteringKeyName = getClusteringKeyName(strTableName);
-        int pagesCount = getTableSize(strTableName);
-        Vector<Integer> toBeDeleted = new Vector<>();
-        HashSet<Integer> found = new HashSet<>();
-        if(htblColNameValue.isEmpty()){
-            int size = getTableSize(strTableName);
-            for(int i = 1; i<=size; i++) {
-                toBeDeleted.add(i);
-            }
-        }else if(htblColNameValue.containsKey(clusteringKeyName)) {
-            int[] boundaries = pagesBinarySearch(pagesCount, (Comparable) htblColNameValue.get(clusteringKeyName), strTableName);
-            boolean matched = true;
-            if (boundaries[0] != boundaries[1]) {
-                matched = false;
-                return;
-            }
-
-            Page currentPage = readFromPage(strTableName, boundaries[0]);
-            int idx = recordBinarySearch(currentPage.pageData, (Comparable) htblColNameValue.get(clusteringKeyName));
-            if (idx == -1 || currentPage.maxRows <= idx || !currentPage.pageData.get(idx).clusteringKey.equals(htblColNameValue.get(clusteringKeyName))) {
-                matched = false;
-                return;
-            }
-
-            SerializablePageRecord currentRecord = currentPage.pageData.get(idx);
-            for (String key : currentRecord.recordHash.keySet()) {
-                if (htblColNameValue.containsKey(key) && !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key))) {
-                    matched = false;
-                    return;
+        try {
+            String clusteringKeyName = getClusteringKeyName(strTableName);
+            int pagesCount = getTableSize(strTableName);
+            Vector<Integer> toBeDeleted = new Vector<>();
+            HashSet<Integer> found = new HashSet<>();
+            if(htblColNameValue.isEmpty()){
+                int size = getTableSize(strTableName);
+                for(int i = 1; i<=size; i++) {
+                    toBeDeleted.add(i);
                 }
-            }
-            if(matched) {
-                currentPage.pageData.remove(idx);
-            }
-
-            if(currentPage.pageData.isEmpty()){
-                toBeDeleted.add(boundaries[0]);
-                found.add(boundaries[0]);
-            }else{
-                writeToPage(strTableName, currentPage, boundaries[0]);
-            }
-
-        }else {
-            for(int i = 1; i<=pagesCount; i++){
-                Page currentPage = readFromPage(strTableName, i);
-                for(SerializablePageRecord currentRecord: (Vector<SerializablePageRecord>) currentPage.pageData.clone()){
+            }else if(htblColNameValue.containsKey(clusteringKeyName)) {
+                    int[] boundaries = pagesBinarySearch(pagesCount, (Comparable) htblColNameValue.get(clusteringKeyName), strTableName);
                     boolean matched = true;
+                    if (boundaries[0] != boundaries[1]) {
+                        matched = false;
+                        return;
+                    }
+                    
+                    Page currentPage = readFromPage(strTableName, boundaries[0]);
+                    int idx = recordBinarySearch(currentPage.pageData, (Comparable) htblColNameValue.get(clusteringKeyName));
+                    if (idx == -1 || currentPage.maxRows <= idx || !currentPage.pageData.get(idx).clusteringKey.equals(htblColNameValue.get(clusteringKeyName))) {
+                        matched = false;
+                        return;
+                    }
+                    
+                    SerializablePageRecord currentRecord = currentPage.pageData.get(idx);
                     for (String key : currentRecord.recordHash.keySet()) {
                         if (htblColNameValue.containsKey(key) && !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key))) {
                             matched = false;
+                            return;
                         }
                     }
-                    if(matched){
-                        currentPage.pageData.remove(currentRecord);
+                    if(matched) {
+                        currentPage.pageData.remove(idx);
+                    }
+                    
+                    if(currentPage.pageData.isEmpty()){
+                        toBeDeleted.add(boundaries[0]);
+                        found.add(boundaries[0]);
+                    }else{
+                    writeToPage(strTableName, currentPage, boundaries[0]);
+                }
+                
+            }else {
+                for(int i = 1; i<=pagesCount; i++){
+                    Page currentPage = readFromPage(strTableName, i);
+                    for(SerializablePageRecord currentRecord: (Vector<SerializablePageRecord>) currentPage.pageData.clone()){
+                        boolean matched = true;
+                        for (String key : currentRecord.recordHash.keySet()) {
+                            if (htblColNameValue.containsKey(key) && !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key))) {
+                                matched = false;
+                            }
+                        }
+                        if(matched){
+                            currentPage.pageData.remove(currentRecord);
+                        }
+                    }
+                    if(currentPage.pageData.isEmpty()){
+                        toBeDeleted.add(i);
+                        found.add(i);
+                    }else{
+                        writeToPage(strTableName, currentPage, i);
                     }
                 }
-                if(currentPage.pageData.isEmpty()){
-                    toBeDeleted.add(i);
-                    found.add(i);
-                }else{
-                    writeToPage(strTableName, currentPage, i);
+            }
+            deleteEntirePage(strTableName, toBeDeleted);
+            int cnt = 0;
+            for(int i = 1; i<=pagesCount; i++){
+                if(found.contains(i)){
+                    cnt++;
+                }else if(cnt > 0){
+                    renameFile(strTableName, i, i - cnt);
                 }
             }
+        
+        } catch (ClassNotFoundException e) {
+            throw new DBAppException("ClassNotFoundException was thrown.");
+        } catch (IOException e) {
+            throw new DBAppException("Problem with IO happened.");
         }
-        deleteEntirePage(strTableName, toBeDeleted);
-        int cnt = 0;
-        for(int i = 1; i<=pagesCount; i++){
-            if(found.contains(i)){
-                cnt++;
-            }else if(cnt > 0){
-                renameFile(strTableName, i, i - cnt);
-            }
-        }
-
-
-
+        
+        
     }
-
+    
     /*public Iterator selectFromTable(SQLTerm[] arrSQLTerms,
-                                    String[] strarrOperators)
-            throws DBAppException{}
-
-        public Iterator parseSQL( StringBuffer strbufSQL ) throws
-            DBAppException{}
-     */
-
-
+    String[] strarrOperators)
+    throws DBAppException{}
+    
+    public Iterator parseSQL( StringBuffer strbufSQL ) throws
+    DBAppException{}
+    */
+    
+    
     public static void main(String[] args) throws DBAppException, IOException, ParseException, ClassNotFoundException {
         String strTableName = "Student";
         DBApp dbApp = new DBApp( );
-//        Hashtable htblColNameType = new Hashtable( );
-//        htblColNameType.put("id", "java.lang.Integer");
-//        htblColNameType.put("name", "java.lang.String");
-//        htblColNameType.put("gpa", "java.lang.Double");
-//        Hashtable htblColNameMin = new Hashtable();
-//        htblColNameMin.put("id", "0");
-//        htblColNameMin.put("name", "A");
-//        htblColNameMin.put("gpa", "0");
-//        Hashtable htblColNameMax = new Hashtable();
-//        htblColNameMax.put("id", "100000000");
-//        htblColNameMax.put("name", "ZZZZZZZZZZZZZZZZZ");
-//        htblColNameMax.put("gpa", "10000000");
-//        dbApp.createTable( strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
+        Hashtable htblColNameType = new Hashtable( );
+        htblColNameType.put("id", "java.lang.Integer");
+        htblColNameType.put("name", "java.lang.String");
+        htblColNameType.put("gpa", "java.lang.Double");
+        Hashtable htblColNameMin = new Hashtable();
+        htblColNameMin.put("id", "0");
+        htblColNameMin.put("name", "A");
+        htblColNameMin.put("gpa", "0");
+        Hashtable htblColNameMax = new Hashtable();
+        htblColNameMax.put("id", "100000000");
+        htblColNameMax.put("name", "ZZZZZZZZZZZZZZZZZ");
+        htblColNameMax.put("gpa", "10000000");
+        dbApp.createTable( strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
         Hashtable htblColNameValue = new Hashtable( );
-//        htblColNameValue.put("id", new Integer( 2343432 ));
-//        htblColNameValue.put("name", new String("Ahmed Noor" ) );
-//        htblColNameValue.put("gpa", new Double( 0.95 ) );
-//        dbApp.insertIntoTable( strTableName , htblColNameValue );
-//        htblColNameValue.clear( );
-//        htblColNameValue.put("id", new Integer( 453455 ));
-//        htblColNameValue.put("name", new String("Ahmed Noor" ) );
-//        htblColNameValue.put("gpa", new Double( 0.95 ) );
-//        dbApp.insertIntoTable( strTableName , htblColNameValue );
-//        htblColNameValue.clear( );
-//        htblColNameValue.put("id", new Integer( 5674567 ));
-//        htblColNameValue.put("name", new String("Dalia Noor" ) );
-//        htblColNameValue.put("gpa", new Double( 1.25 ) );
-//        dbApp.insertIntoTable( strTableName , htblColNameValue );
-//        htblColNameValue.clear( );
-//        htblColNameValue.put("id", new Integer( 23498 ));
-//        htblColNameValue.put("name", new String("John Noor" ) );
-//        htblColNameValue.put("gpa", new Double( 1.5 ) );
-//        dbApp.insertIntoTable( strTableName , htblColNameValue );
-//        htblColNameValue.clear( );
-//        htblColNameValue.put("id", new Integer( 78452 ));
-//        htblColNameValue.put("name", new String("ZAKY NOOR" ) );
-//        htblColNameValue.put("gpa", new Double( 0.88 ) );
-//        dbApp.insertIntoTable( strTableName , htblColNameValue );
-//        htblColNameValue.clear();
+        htblColNameValue.put("id", new Integer( 2343432 ));
+        htblColNameValue.put("name", new String("Ahmed Noor" ) );
+        htblColNameValue.put("gpa", new Double( 0.95 ) );
+        dbApp.insertIntoTable( strTableName , htblColNameValue );
+        htblColNameValue.clear( );
+        htblColNameValue.put("id", new Integer( 453455 ));
+        htblColNameValue.put("name", new String("Ahmed Noor" ) );
+        htblColNameValue.put("gpa", new Double( 0.95 ) );
+        dbApp.insertIntoTable( strTableName , htblColNameValue );
+        htblColNameValue.clear( );
+        htblColNameValue.put("id", new Integer( 5674567 ));
+        htblColNameValue.put("name", new String("Dalia Noor" ) );
+        htblColNameValue.put("gpa", new Double( 1.25 ) );
+        dbApp.insertIntoTable( strTableName , htblColNameValue );
+        htblColNameValue.clear( );
+        htblColNameValue.put("id", new Integer( 23498 ));
+        htblColNameValue.put("name", new String("John Noor" ) );
+        htblColNameValue.put("gpa", new Double( 1.5 ) );
+        dbApp.insertIntoTable( strTableName , htblColNameValue );
+        htblColNameValue.clear( );
+        htblColNameValue.put("id", new Integer( 78452 ));
+        htblColNameValue.put("name", new String("ZAKY NOOR" ) );
+        htblColNameValue.put("gpa", new Double( 0.88 ) );
+        dbApp.insertIntoTable( strTableName , htblColNameValue );
+        htblColNameValue.clear();
         htblColNameValue.put("name", new String("ZAKY NOOR" ));
         htblColNameValue.put("gpa", new Double( 1.23));
         dbApp.updateTable(strTableName, "78452", htblColNameValue);

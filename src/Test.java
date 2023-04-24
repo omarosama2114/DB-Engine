@@ -18,17 +18,17 @@ public class Test {
 //                System.out.println("=========");
 //            }
 //        }
-//        for(int i = 1; i<=3; i++){
-//            FileInputStream fis = new FileInputStream("Student/" + i + ".class");
-//            ObjectInputStream ois = new ObjectInputStream(fis);
-//            Page b = (Page) ois.readObject();
-//            for(SerializablePageRecord s : b.pageData){
-//                for(String key : s.recordHash.keySet()){
-//                    System.out.println(key + " " + s.recordHash.get(key));
-//                }
-//                System.out.println("=========");
-//            }
-//        }
+       for(int i = 1; i<=3; i++){
+           FileInputStream fis = new FileInputStream("Student/" + i + ".class");
+           ObjectInputStream ois = new ObjectInputStream(fis);
+           Page b = (Page) ois.readObject();
+           for(SerializablePageRecord s : b.pageData){
+               for(String key : s.recordHash.keySet()){
+                   System.out.println(key + " " + s.recordHash.get(key));
+               }
+               System.out.println("=========");
+           }
+       }
 //        FileInputStream fis = new FileInputStream("Student/1.class");
 //        ObjectInputStream ois = new ObjectInputStream(fis);
 //        Page b = (Page) ois.readObject();
