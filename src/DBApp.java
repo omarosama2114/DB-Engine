@@ -79,18 +79,19 @@ public class DBApp {
             throws DBAppException, IOException, ParseException, ClassNotFoundException {
         boolean foundTable = false;
         Scanner sc = new Scanner(new FileReader("meta-data.csv"));
-        int cnt = 0;
         while (sc.hasNext()) {
             String[] splitted = sc.next().split(",");
             if (splitted[0].equals(strTableName)) {
-                cnt++;
                 foundTable = true;
                 if (splitted[3].equals("true")) {
                     clusteringKeyName.append(splitted[1]);
                 }
                 if (!htblColNameValue.containsKey(splitted[1])) {
-                    sc.close();
-                    throw new DBAppException("Table content does not match");
+                    if(splitted[3].equals("true")){
+                        sc.close();
+                        throw new DBAppException("Clustering Key is missing");
+                    }
+                    continue;
                 }
                 String type = htblColNameValue.get(splitted[1]).getClass().toString().substring(6);
                 System.out.println(type + " " +splitted[2]);
@@ -106,9 +107,6 @@ public class DBApp {
             }
         }
         sc.close();
-        if (cnt != htblColNameValue.size()) {
-            throw new DBAppException("Input table does not match dimension of original table");
-        }
         if (!foundTable) {
             throw new DBAppException("No such table exist");
         }
