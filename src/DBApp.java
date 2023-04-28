@@ -93,6 +93,7 @@ public class DBApp {
                     throw new DBAppException("Table content does not match");
                 }
                 String type = htblColNameValue.get(splitted[1]).getClass().toString().substring(6);
+                System.out.println(type + " " +splitted[2]);
                 if (!type.equals(splitted[2])) {
                     sc.close();
                     throw new DBAppException("Type Mismatch Error");
@@ -349,6 +350,10 @@ public class DBApp {
             Comparable clusteringKey = (Comparable) getKey(strClusteringKeyValue, strTableName);
             verifyBeforeUpdate(strTableName, htblColNameValue, clusteringKey);
             int[] boundaries = pagesBinarySearch(pagesCount, clusteringKey, strTableName);
+            if(boundaries[0] == 0) {
+                //throw new DBAppException("Clustering Key does not exist");
+                return;
+            }
             Page p = readFromPage(strTableName, boundaries[0]);
             int idx = recordBinarySearch(p.pageData, clusteringKey);
             SerializablePageRecord spr = p.pageData.get(idx);
