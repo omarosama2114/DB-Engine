@@ -18,7 +18,7 @@ public class Test {
 //                System.out.println("=========");
 //            }
 //        }
-       for(int i = 1; i<=3; i++){
+       for(int i = 1; i<=5; i++){
            FileInputStream fis = new FileInputStream("Student/" + i + ".class");
            ObjectInputStream ois = new ObjectInputStream(fis);
            Page b = (Page) ois.readObject();

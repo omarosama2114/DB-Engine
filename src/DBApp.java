@@ -182,6 +182,7 @@ public class DBApp {
             }
             if (currPage.pageData.size() <= currPage.maxRows) {
                 sprTmp = null;
+                writeToPage(strTableName, currPage, idx);
                 break;
             }
             sprTmp = currPage.pageData.remove(currPage.pageData.size() - 1);
@@ -263,6 +264,7 @@ public class DBApp {
             verifyBeforeInsert(strTableName, htblColNameValue, clusteringKeyName);
             int pagesCount = getTableSize(strTableName);
             int[] boundaries = pagesBinarySearch(pagesCount, (Comparable) htblColNameValue.get(clusteringKeyName.toString()), strTableName);
+            System.out.println(boundaries[0] + " " + boundaries[1]);
             insertionHandler(boundaries, pagesCount, strTableName, htblColNameValue, clusteringKeyName);
         } catch (ClassNotFoundException e) {
             throw new DBAppException("ClassNotFoundException was thrown.");
