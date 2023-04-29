@@ -1,3 +1,5 @@
+package main.java;
+
 import java.io.*;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -21,7 +23,7 @@ public class main {
         htblColNameMax.put("id", "2023-01-01");
         htblColNameMax.put("name", "ZZZZZZZZZZZZZZZZZ");
         htblColNameMax.put("gpa", "10000000");
-        //dbApp.createTable(strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
+        dbApp.createTable(strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
         htblColNameValue.put("name", new String("Ahmed Noor"));
         htblColNameValue.put("gpa", new Double(0.95));
         dbApp.updateTable(strTableName, "2024-01-01", htblColNameValue);

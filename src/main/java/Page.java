@@ -1,3 +1,5 @@
+package main.java;
+
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -14,7 +16,7 @@ public class Page implements Serializable {
     public Page() throws IOException {
         pageData = new Vector<>();
         Properties prop = new Properties();
-        String fileName = "src/DBApp.config";
+        String fileName = "src/main/resources/DBApp.config";
         FileInputStream fileInputStream = new FileInputStream(fileName);
         prop.load(fileInputStream);
         maxRows = Integer.parseInt(prop.getProperty("MaximumRowsCountingTablePage"));
