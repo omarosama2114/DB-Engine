@@ -69,8 +69,8 @@ public class DBApp {
             return converted.compareTo(min) >= 0 && converted.compareTo(max) <= 0;
         } else {
             Date converted = (Date) o;
-            Date minConverted = new SimpleDateFormat("YYYY-MM-DD").parse(min);
-            Date maxConverted = new SimpleDateFormat("YYYY-MM-DD").parse(max);
+            Date minConverted = new SimpleDateFormat("yyyy-MM-dd").parse(min);
+            Date maxConverted = new SimpleDateFormat("yyyy-MM-dd").parse(max);
             return converted.compareTo(minConverted) >= 0 && converted.compareTo(maxConverted) <= 0;
         }
     }
