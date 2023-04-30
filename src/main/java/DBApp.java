@@ -1,4 +1,3 @@
-package main.java;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -65,7 +64,9 @@ public class DBApp {
             double minConverted = Double.parseDouble(min), maxConverted = Double.parseDouble(max);
             return !(converted < minConverted) && !(converted > maxConverted);
         } else if (o instanceof String) {
-            String converted = (String) o;
+            String converted = ((String) o).toLowerCase();
+            min = min.toLowerCase();
+            max = max.toLowerCase();
             return converted.compareTo(min) >= 0 && converted.compareTo(max) <= 0;
         } else {
             Date converted = (Date) o;
@@ -80,9 +81,11 @@ public class DBApp {
             throws DBAppException, IOException, ParseException, ClassNotFoundException {
         boolean foundTable = false;
         Scanner sc = new Scanner(new FileReader("meta-data.csv"));
+        int cntColumns = 0; // check equal columns
         while (sc.hasNext()) {
             String[] splitted = sc.next().split(",");
             if (splitted[0].equals(strTableName)) {
+                cntColumns++;
                 foundTable = true;
                 if (splitted[3].equals("true")) {
                     clusteringKeyName.append(splitted[1]);
@@ -92,7 +95,7 @@ public class DBApp {
                         sc.close();
                         throw new DBAppException("Clustering Key is missing");
                     }
-                    htblColNameValue.put(splitted[1], null);
+                    htblColNameValue.put(splitted[1], new Null());
                     continue;
                 }
                 String type = htblColNameValue.get(splitted[1]).getClass().toString().substring(6);
@@ -111,6 +114,9 @@ public class DBApp {
         sc.close();
         if (!foundTable) {
             throw new DBAppException("No such table exist");
+        }
+        if(cntColumns < htblColNameValue.size()){
+            throw new DBAppException("Columns Do not exist");
         }
         int[] boundaries = pagesBinarySearch(getTableSize(strTableName),
                 (Comparable) htblColNameValue.get(clusteringKeyName.toString()), strTableName);
@@ -265,7 +271,6 @@ public class DBApp {
             verifyBeforeInsert(strTableName, htblColNameValue, clusteringKeyName);
             int pagesCount = getTableSize(strTableName);
             int[] boundaries = pagesBinarySearch(pagesCount, (Comparable) htblColNameValue.get(clusteringKeyName.toString()), strTableName);
-            System.out.println(boundaries[0] + " " + boundaries[1]);
             insertionHandler(boundaries, pagesCount, strTableName, htblColNameValue, clusteringKeyName);
         } catch (ClassNotFoundException e) {
             throw new DBAppException("ClassNotFoundException was thrown.");
@@ -340,7 +345,6 @@ public class DBApp {
         throw new DBAppException("Clustering Key Parse problem");
     }
 
-    //Reminder: setting strClusteringKeyValue to Object instead of String.
     public void updateTable(String strTableName,
                             String strClusteringKeyValue,
                             Hashtable<String, Object> htblColNameValue)
@@ -351,8 +355,7 @@ public class DBApp {
             verifyBeforeUpdate(strTableName, htblColNameValue, clusteringKey);
             int[] boundaries = pagesBinarySearch(pagesCount, clusteringKey, strTableName);
             if(boundaries[0] == 0) {
-                //throw new DBAppException("Clustering Key does not exist");
-                return;
+                throw new DBAppException("Clustering Key does not exist");
             }
             Page p = readFromPage(strTableName, boundaries[0]);
             int idx = recordBinarySearch(p.pageData, clusteringKey);
@@ -371,17 +374,27 @@ public class DBApp {
         }
     }
 
-    public String getClusteringKeyName(String strTableName) throws FileNotFoundException, DBAppException {
+    public String getClusteringKeyName(String strTableName, Hashtable<String, Object> htblColNameValue) throws FileNotFoundException, DBAppException {
         Scanner sc = new Scanner(new FileReader("meta-data.csv"));
+        HashSet<String> columns = new HashSet<>();
+        String temp = "";
         while (sc.hasNext()) {
             String[] splitted = sc.next().split(",");
             if (splitted[0].equals(strTableName)) {
-                if (splitted[3].equals("true"))
-                    return splitted[1];
+                columns.add(splitted[1]);
+                if (splitted[3].equals("true")){
+                    temp = splitted[1];
+                }
             }
         }
         sc.close();
-        throw new DBAppException("Table Not Found Or Table with No Clustering Key");
+        if(columns.isEmpty()) throw new DBAppException("Table Not Found Or Table with No Clustering Key");
+        for(String key: htblColNameValue.keySet()){
+            if(!columns.contains(key)){
+                throw new DBAppException("Column does not exist");
+            }
+        }
+        return temp;
     }
 
 
@@ -401,10 +414,11 @@ public class DBApp {
             throws DBAppException {
 
         try {
-            String clusteringKeyName = getClusteringKeyName(strTableName);
+            String clusteringKeyName = getClusteringKeyName(strTableName, htblColNameValue);
             int pagesCount = getTableSize(strTableName);
             Vector<Integer> toBeDeleted = new Vector<>();
             HashSet<Integer> found = new HashSet<>();
+
             if(htblColNameValue.isEmpty()){
                 int size = getTableSize(strTableName);
                 for(int i = 1; i<=size; i++) {

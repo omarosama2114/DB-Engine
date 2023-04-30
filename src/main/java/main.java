@@ -1,4 +1,3 @@
-package main.java;
 
 import java.io.*;
 import java.text.ParseException;
