@@ -441,7 +441,8 @@ public class DBApp {
                     
                     SerializablePageRecord currentRecord = currentPage.pageData.get(idx);
                     for (String key : currentRecord.recordHash.keySet()) {
-                        if (htblColNameValue.containsKey(key) && !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key))) {
+                        if (htblColNameValue.containsKey(key)
+                                && ((currentRecord.recordHash.get(key) instanceof Null) || !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key)))) {
                             matched = false;
                             return;
                         }
@@ -463,7 +464,8 @@ public class DBApp {
                     for(SerializablePageRecord currentRecord: (Vector<SerializablePageRecord>) currentPage.pageData.clone()){
                         boolean matched = true;
                         for (String key : currentRecord.recordHash.keySet()) {
-                            if (htblColNameValue.containsKey(key) && !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key))) {
+                            if (htblColNameValue.containsKey(key)
+                                    && ((currentRecord.recordHash.get(key) instanceof Null) || !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key)))) {
                                 matched = false;
                             }
                         }
