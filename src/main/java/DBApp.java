@@ -399,7 +399,7 @@ public class DBApp{
 
     public void deleteEntirePage(String strTableName, Vector<Integer> pagesIdx) throws IOException, ClassNotFoundException {
         for(int idx: pagesIdx){
-            Files.delete(Path.of(strTableName + "/" + idx + ".class"));
+            Files.delete(Paths.get(strTableName + "/" + idx + ".class"));
         }
     }
 

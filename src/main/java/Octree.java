@@ -1,16 +1,19 @@
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Properties;
+import java.util.Vector;
 
-public class Octree {
+public class Octree implements Serializable{
     OctreeNode root;  // root node of the octree
     int nodeSize;
 
-    Octree(Comparable x, Comparable y, Comparable z, Comparable minX, Comparable minY, Comparable minZ, Comparable maxX, Comparable maxY, Comparable maxZ) throws IOException {
+    Octree(SerializablePageRecord record, Comparable x, Comparable y, Comparable z, Comparable minX,
+                     Comparable minY, Comparable minZ, Comparable maxX, Comparable maxY, Comparable maxZ) throws IOException {
         this.root = new OctreeNode(minX, minY, minZ, maxX, maxY, maxZ);
-        root.data.add(new OctreeNode.tuple(x , y , z));
+        root.data.add(new Tuple(x , y , z, record));
         Properties prop = new Properties();
         String fileName = "src/main/resources/DBApp.config";
         FileInputStream fileInputStream = new FileInputStream(fileName);
@@ -18,10 +21,9 @@ public class Octree {
         this.nodeSize = Integer.parseInt(prop.getProperty("MaximumEntriesinOctreeNode"));
     }
 
-    //TODO: read Config file to get the max entries in the node
-    void insert(Comparable x, Comparable y, Comparable z) {
+    void insert(Comparable x, Comparable y, Comparable z, SerializablePageRecord record) {
         OctreeNode node = this.root;
-        while (node.hasChildren) {
+        while (node.dummy) {
             Comparable[] cur = getIndex(node, x, y, z);
             int index = (int) cur[0];
             if (node.children[index] == null) {
@@ -30,18 +32,43 @@ public class Octree {
             }
             node = node.children[index];
         }
+        if(node.data.size() < nodeSize){
+            node.add(x, y, z, record);
+            return;
+        }
         do {
-            node.hasChildren = true;
-            Comparable[] cur1 = getIndex(node, x, y, z);
-            Comparable[] cur2 = getIndex(node, node.x, node.y, node.z);
-            int index1 = (int) cur1[0];
-            int index2 = (int) cur2[0];
-            if (index1 != index2) {
-                node.children[index1] = new OctreeNode(x, y, z, cur1[1], cur1[2], cur1[3], cur1[4], cur1[5],cur1[6]);
-                node.children[index2] = new OctreeNode(node.x, node.y, node.z, cur2[1], cur2[2], cur2[3], cur2[4],cur2[5], cur2[6]);
+
+            node.dummy = true;
+            Comparable[][] cur = new Comparable[nodeSize][];
+            Comparable[] toBeInserted = getIndex(node, x, y, z);
+            boolean extreme = true;
+            for(int i=0; i<nodeSize; i++){
+                cur[i] = getIndex(node, node.data.get(i).x, node.data.get(i).y, node.data.get(i).z);
+                if((int)cur[i][0] != (int)toBeInserted[0])
+                extreme = false;
+            }
+            
+            if (!extreme) {
+                node.children[(int)toBeInserted[0]] = new OctreeNode(toBeInserted[1], toBeInserted[2], toBeInserted[3],
+                            toBeInserted[4], toBeInserted[5], toBeInserted[6]);
+                node.children[(int)toBeInserted[0]].add(x, y, z, record);
+                for(int i=0; i<nodeSize; i++){
+                    if(node.children[(int)cur[i][0]] == null){
+                        node.children[(int)cur[i][0]] = new OctreeNode(cur[i][1],cur[i][2], cur[i][3],cur[i][4], cur[i][5], cur[i][6]);
+                        node.children[(int)cur[i][0]].data.add(node.data.get(i));
+                    }
+                    else{
+                        node.children[(int)cur[i][0]].add(node.data.get(i).x, node.data.get(i).y, node.data.get(i).z, node.data.get(i).record);
+                    }
+                }
+                node.data.clear();
                 break;
             } else {
-                node.children[index1] = new OctreeNode(x, y, z, cur1[1], cur1[2], cur1[3],  cur1[4],  cur1[5], cur1[6]);
+                node.children[(int)toBeInserted[0]] = new OctreeNode(toBeInserted[1], toBeInserted[2], toBeInserted[3],  
+                            toBeInserted[4],  toBeInserted[5], toBeInserted[6]);
+                node.children[(int)toBeInserted[0]].data = (Vector<Tuple>)node.data.clone();
+                node.data.clear();
+                node = node.children[(int)toBeInserted[0]];
             }
         } while (true);
     }
@@ -187,7 +214,7 @@ public class Octree {
 
     OctreeNode searchForRemoval(Comparable x, Comparable y, Comparable z) {
         OctreeNode node = this.root, par = null;
-        while (node != null && node.hasChildren) {
+        while (node != null && node.dummy) {
             Comparable[] cur = getIndex(node, x, y, z);
             int index = (int) cur[0];
             par = node;
@@ -206,7 +233,7 @@ public class Octree {
 
     OctreeNode search(Comparable x, Comparable y, Comparable z) {
         OctreeNode node = this.root;
-        while (node != null && node.hasChildren) {
+        while (node != null && node.dummy) {
             Comparable[] cur = getIndex(node, x, y, z);
             int index = (int) cur[0];
             node = node.children[index];
@@ -214,9 +241,9 @@ public class Octree {
         return node;
     }
 
-    void update(Comparable oldX, Comparable oldY, Comparable oldZ, Comparable newX, Comparable newY, Comparable newZ) {
+    void update(Comparable oldX, Comparable oldY, Comparable oldZ, Comparable newX, Comparable newY, Comparable newZ, SerializablePageRecord record) {
         remove(oldX, oldY, oldZ);
-        insert(newX, newY, newZ);
+        insert(newX, newY, newZ, record);
     }
 }
 

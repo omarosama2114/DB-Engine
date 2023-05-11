@@ -6,11 +6,11 @@ import java.util.ArrayList;
 import java.util.Properties;
 import java.util.Vector;
 
-public class OctreeNode{
+public class OctreeNode implements Serializable{
     Comparable minX , maxX ,minY , maxY ,minZ , maxZ;
-    Vector<tuple> data;
+    Vector<Tuple> data;
     OctreeNode[] children;
-    boolean hasChildren;
+    boolean dummy;
     OctreeNode(Comparable minX, Comparable minY, Comparable minZ, Comparable maxX, Comparable maxY, Comparable maxZ){
         data = new Vector<>();
         this.minX = minX;
@@ -20,23 +20,11 @@ public class OctreeNode{
         this.maxY = maxY;
         this.maxZ = maxZ;
         this.children = new OctreeNode[8];
-        this.hasChildren = false;
+        dummy = false;
         this.data = new Vector<>();
     }
 
-    void add(Comparable x, Comparable y, Comparable z) {
-        data.add(new tuple(x, y, z));
-    }
-    static class tuple{
-        Comparable x;
-        Comparable y;
-        Comparable z;
-
-        SerializablePageRecord record;
-        tuple(Comparable x, Comparable y, Comparable z){
-            this.x = x;
-            this.y = y;
-            this.z = z;
-        }
+    void add(Comparable x, Comparable y, Comparable z, SerializablePageRecord record) {
+        data.add(new Tuple(x, y, z, record));
     }
 }
