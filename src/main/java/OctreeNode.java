@@ -1,15 +1,11 @@
-public class OctreeNode {
-    float x, y, z;
-    float minX;
-    float minY;
-    float minZ;
-    float maxX;
-    float maxY;
-    float maxZ;
+public class OctreeNode <X , Y , Z>{
+    X x , minX , maxX;
+    Y y , minY , maxY;
+    Z z  , minZ , maxZ;
     OctreeNode[] children;
     boolean hasChildren;
 
-    OctreeNode(float x, float y, float z, float minX, float minY, float minZ, float maxX, float maxY, float maxZ) {
+    OctreeNode(X x, Y y, Z z, X minX, Y minY, Z minZ, X maxX, Y maxY, Z maxZ) {
         this.x = x;
         this.y = y;
         this.z = z;
