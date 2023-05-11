@@ -2,9 +2,8 @@ public class OctreeNode <X , Y , Z>{
     X x , minX , maxX;
     Y y , minY , maxY;
     Z z  , minZ , maxZ;
-    OctreeNode[] children;
+    OctreeNode<X , Y , Z>[] children;
     boolean hasChildren;
-
     OctreeNode(X x, Y y, Z z, X minX, Y minY, Z minZ, X maxX, Y maxY, Z maxZ) {
         this.x = x;
         this.y = y;
@@ -19,4 +18,3 @@ public class OctreeNode <X , Y , Z>{
         this.hasChildren = false;
     }
 }
-
