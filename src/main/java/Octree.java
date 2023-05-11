@@ -227,6 +227,20 @@ public class Octree implements Serializable{
         OctreeNode node = search(x, y, z);
         if (node == null) return;
         OctreeNode par = searchForRemoval(x, y, z);
+        int idx = -1;
+        for(int i = 0; i<node.data.size(); i++){
+            Tuple current = node.data.get(i);
+            if(current.x.compareTo(x) == 0 && current.y.compareTo(y) == 0 && current.z.compareTo(z) == 0){
+                idx = i;
+                break;
+            }
+        }
+        if(idx == -1) return;
+        node.data.remove(idx);
+
+        if(par == null || node.data.size() != 0){
+            return;
+        }
         Comparable[] cur = getIndex(par, x, y, z);
         par.children[(int) cur[0]] = null;
     }
@@ -238,10 +252,19 @@ public class Octree implements Serializable{
             int index = (int) cur[0];
             node = node.children[index];
         }
-        return node;
+        if(node == null) return null;
+
+        for(int i = 0; i<node.data.size(); i++){
+            Tuple current = node.data.get(i);
+            if(current.x.compareTo(x) == 0 && current.y.compareTo(y) == 0 && current.z.compareTo(z) == 0){
+                return node;
+            }
+        }
+        return null;
     }
 
     void update(Comparable oldX, Comparable oldY, Comparable oldZ, Comparable newX, Comparable newY, Comparable newZ, SerializablePageRecord record) {
+        if(search(oldX, oldY, oldZ) == null) return;
         remove(oldX, oldY, oldZ);
         insert(newX, newY, newZ, record);
     }
