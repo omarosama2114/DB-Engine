@@ -1,13 +1,18 @@
-public class OctreeNode <X , Y , Z>{
-    X x , minX , maxX;
-    Y y , minY , maxY;
-    Z z  , minZ , maxZ;
-    OctreeNode<X , Y , Z>[] children;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Properties;
+import java.util.Vector;
+
+public class OctreeNode{
+    Comparable minX , maxX ,minY , maxY ,minZ , maxZ;
+    Vector<tuple> data;
+    OctreeNode[] children;
     boolean hasChildren;
-    OctreeNode(X x, Y y, Z z, X minX, Y minY, Z minZ, X maxX, Y maxY, Z maxZ) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
+    OctreeNode(Comparable minX, Comparable minY, Comparable minZ, Comparable maxX, Comparable maxY, Comparable maxZ){
+        data = new Vector<>();
         this.minX = minX;
         this.minY = minY;
         this.minZ = minZ;
@@ -16,5 +21,22 @@ public class OctreeNode <X , Y , Z>{
         this.maxZ = maxZ;
         this.children = new OctreeNode[8];
         this.hasChildren = false;
+        this.data = new Vector<>();
+    }
+
+    void add(Comparable x, Comparable y, Comparable z) {
+        data.add(new tuple(x, y, z));
+    }
+    static class tuple{
+        Comparable x;
+        Comparable y;
+        Comparable z;
+
+        SerializablePageRecord record;
+        tuple(Comparable x, Comparable y, Comparable z){
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
     }
 }
