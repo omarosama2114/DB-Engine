@@ -1,3 +1,7 @@
+import com.opencsv.CSVReader;
+import com.opencsv.CSVWriter;
+import com.opencsv.exceptions.CsvException;
+
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,14 +13,17 @@ public class DBApp{
     public void init() {
     }
 
-
+//TODO continue CSVReade and CSVWriter
+//TODO complete verifyBeforeInsert
+//TODO complete createIndex
+//TODO Complete DBApp
 
     public void createTable(String strTableName,
                             String strClusteringKeyColumn,
                             Hashtable<String, String> htblColNameType,
                             Hashtable<String, String> htblColNameMin,
                             Hashtable<String, String> htblColNameMax)
-            throws DBAppException {
+            throws DBAppException, IOException {
 
         File theDir = new File(strTableName);
         if (!theDir.exists()) {
@@ -24,9 +31,10 @@ public class DBApp{
         } else {
             throw new DBAppException("Table already exists");
         }
-        PrintWriter pw = null;
+        CSVWriter pw = null;
         try {
-            pw = new PrintWriter(new FileWriter("meta-data.csv", true));
+            Vector<String[]> toBePrinted = new Vector<>();
+            pw = new CSVWriter(new FileWriter("meta-data.csv"));
             for (String name : htblColNameType.keySet()) {
                 String type = htblColNameType.get(name);
                 if (!htblColNameMax.containsKey(name)) {
@@ -35,10 +43,10 @@ public class DBApp{
                 if (!htblColNameMin.containsKey(name)) {
                     throw new DBAppException("No Such key in htbColNameMin");
                 }
-                pw.println(strTableName + "," + name + "," + type + "," + (strClusteringKeyColumn.equals(name)) + ",null,null," +
-                htblColNameMin.get(name) + "," + htblColNameMax.get(name));
-
+                toBePrinted.add(new String[]{strTableName, name, type, "" + (strClusteringKeyColumn.equals(name)), "null",
+                        "null",htblColNameMin.get(name), htblColNameMax.get(name)});
             }
+            pw.writeAll(toBePrinted);
         } catch (IOException e) {
             throw new DBAppException("Failed to output data to the meta-data file.");
         }finally{
@@ -47,8 +55,60 @@ public class DBApp{
         }
     }
 
+    public void verifyBeforeIndex(String strTableName, String[] strarrColName) throws DBAppException, IOException, CsvException {
+        boolean foundTable = false;
+        File inputFile = new File("meta-data.csv");
+
+        // Read existing file
+        CSVReader reader = new CSVReader(new FileReader(inputFile));
+        List<String[]> csvBody =reader.readAll();
+        HashMap<String, Boolean> columns = new HashMap<>();
+        for(String[] splitted: csvBody) {
+            if (splitted[0].equals(strTableName)) {
+                foundTable = true;
+                columns.put(splitted[1], !splitted[4].equals("null"));
+            }
+        }
+        if (!foundTable) {
+            throw new DBAppException("No such table exist");
+        }
+        HashSet<String> count = new HashSet<>(List.of(strarrColName));
+        if(count.size() != 3)throw new DBAppException("Index must be created on 3 different columns");
+        for(String str: strarrColName){
+            if(!columns.containsKey(str) || columns.get(str)){
+                throw new DBAppException("Column not found or index already created on columns");
+            }
+        }
+
+
+
+        for(String[] x: csvBody)
+            System.out.println(Arrays.toString(x));
+        csvBody.get(0)[4] = "XYZINDEX";
+//         get CSV row column and replace with by using row and column
+        for(int i=0; i<csvBody.size(); i++){
+            String[] strArray = csvBody.get(i);
+            for(int j=0; j<strArray.length; j++){
+                if(strArray[j].equalsIgnoreCase("Update_date")){ //String to be replaced
+                    csvBody.get(i)[j] = "Updated_date"; //Target replacement
+                }
+            }
+        }
+        reader.close();
+
+        // Write to CSV file which is open
+        CSVWriter writer = new CSVWriter(new FileWriter(inputFile));
+        writer.writeAll(csvBody);
+        for(String[] x: csvBody)
+            System.out.println(Arrays.toString(x));
+        writer.flush();
+        writer.close();
+
+    }
+
     public void createIndex(String strTableName,
                             String[] strarrColName) throws DBAppException {
+
 
     }
 

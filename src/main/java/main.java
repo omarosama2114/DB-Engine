@@ -1,4 +1,6 @@
 
+import com.opencsv.exceptions.CsvException;
+
 import java.io.*;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -6,27 +8,28 @@ import java.util.Date;
 import java.util.Hashtable;
 
 public class main {
-    public static void main(String[] args) throws IOException, ClassNotFoundException, DBAppException, ParseException {
+    public static void main(String[] args) throws IOException, ClassNotFoundException, DBAppException, ParseException, CsvException {
         String strTableName = "Student";
         DBApp dbApp = new DBApp();
-        Hashtable htblColNameValue = new Hashtable();
-        Hashtable htblColNameType = new Hashtable();
-        htblColNameType.put("id", "java.util.Date");
-        htblColNameType.put("name", "java.lang.String");
-        htblColNameType.put("gpa", "java.lang.Double");
-        Hashtable htblColNameMin = new Hashtable();
-        htblColNameMin.put("id", "1800-01-01");
-        htblColNameMin.put("name", "A");
-        htblColNameMin.put("gpa", "0");
-        Hashtable htblColNameMax = new Hashtable();
-        htblColNameMax.put("id", "2023-01-01");
-        htblColNameMax.put("name", "ZZZZZZZZZZZZZZZZZ");
-        htblColNameMax.put("gpa", "10000000");
-        dbApp.createTable(strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
-        htblColNameValue.put("name", new String("Ahmed Noor"));
-        htblColNameValue.put("gpa", new Double(0.95));
-        dbApp.updateTable(strTableName, "2024-01-01", htblColNameValue);
-        htblColNameValue.clear();
+//        Hashtable htblColNameValue = new Hashtable();
+//        Hashtable htblColNameType = new Hashtable();
+//        htblColNameType.put("id", "java.util.Date");
+//        htblColNameType.put("name", "java.lang.String");
+//        htblColNameType.put("gpa", "java.lang.Double");
+//        Hashtable htblColNameMin = new Hashtable();
+//        htblColNameMin.put("id", "1800-01-01");
+//        htblColNameMin.put("name", "A");
+//        htblColNameMin.put("gpa", "0");
+//        Hashtable htblColNameMax = new Hashtable();
+//        htblColNameMax.put("id", "2023-01-01");
+//        htblColNameMax.put("name", "ZZZZZZZZZZZZZZZZZ");
+//        htblColNameMax.put("gpa", "10000000");
+//        dbApp.createTable(strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
+        dbApp.verifyBeforeIndex("Student", new String[]{"id", "name", "gpa"});
+//        htblColNameValue.put("name", new String("Ahmed Noor"));
+//        htblColNameValue.put("gpa", new Double(0.95));
+//        dbApp.updateTable(strTableName, "2024-01-01", htblColNameValue);
+//        htblColNameValue.clear();
 //        htblColNameValue.put("id", new Integer(2));
 //        htblColNameValue.put("name", new String("Ahmed Noor"));
 //        htblColNameValue.put("gpa", new Double(0.95));
