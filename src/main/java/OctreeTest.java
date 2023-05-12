@@ -5,6 +5,9 @@ public class OctreeTest {
         try {
             // Create an instance of Octree
             Octree octree = new Octree(null, 0, 0, 0, -100, -100, -100, 100, 100, 100);
+
+
+
             //TODO handle duplicates
             //TODO finish testing
 
@@ -41,28 +44,28 @@ public class OctreeTest {
 //            } else {
 //                System.out.println("Data point update failed.");
 //            }
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            octree.insert(1, 2, 3, null);
-//            OctreeNode node = octree.search(1, 2, 3);
-//            System.out.println("Number of occurrences: " + node.data.size());
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            octree.insert(1, 2, 3, null);
+            OctreeNode node = octree.search(1, 2, 3);
+            System.out.println("Number of occurrences: " + node.data.size());
 
 
 

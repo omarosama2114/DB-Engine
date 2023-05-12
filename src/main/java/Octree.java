@@ -1,10 +1,7 @@
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Properties;
-import java.util.Vector;
+import java.util.*;
 
 public class Octree implements Serializable{
     OctreeNode root;  // root node of the octree
@@ -13,7 +10,7 @@ public class Octree implements Serializable{
     Octree(SerializablePageRecord record, Comparable x, Comparable y, Comparable z, Comparable minX,
                      Comparable minY, Comparable minZ, Comparable maxX, Comparable maxY, Comparable maxZ) throws IOException {
         this.root = new OctreeNode(minX, minY, minZ, maxX, maxY, maxZ);
-        root.data.add(new Tuple(x , y , z, record));
+        root.add(x , y , z, record);
         Properties prop = new Properties();
         String fileName = "src/main/resources/DBApp.config";
         FileInputStream fileInputStream = new FileInputStream(fileName);
@@ -53,21 +50,25 @@ public class Octree implements Serializable{
                             toBeInserted[4], toBeInserted[5], toBeInserted[6]);
                 node.children[(int)toBeInserted[0]].add(x, y, z, record);
                 for(int i=0; i<nodeSize; i++){
+                    Tuple current = node.data.get(i);
                     if(node.children[(int)cur[i][0]] == null){
                         node.children[(int)cur[i][0]] = new OctreeNode(cur[i][1],cur[i][2], cur[i][3],cur[i][4], cur[i][5], cur[i][6]);
-                        node.children[(int)cur[i][0]].data.add(node.data.get(i));
+                        node.children[(int)cur[i][0]].add(current.x, current.y, current.z, node.records.get(current));
                     }
                     else{
-                        node.children[(int)cur[i][0]].add(node.data.get(i).x, node.data.get(i).y, node.data.get(i).z, node.data.get(i).record);
+                        node.children[(int)cur[i][0]].add(current.x, current.y, current.z, node.records.get(current));
                     }
                 }
                 node.data.clear();
+                node.records.clear();
                 break;
             } else {
                 node.children[(int)toBeInserted[0]] = new OctreeNode(toBeInserted[1], toBeInserted[2], toBeInserted[3],  
                             toBeInserted[4],  toBeInserted[5], toBeInserted[6]);
                 node.children[(int)toBeInserted[0]].data = (Vector<Tuple>)node.data.clone();
+                node.children[(int) toBeInserted[0]].records = (TreeMap<Tuple, Vector<SerializablePageRecord>>) node.records.clone();
                 node.data.clear();
+                node.records.clear();
                 node = node.children[(int)toBeInserted[0]];
             }
         } while (true);
