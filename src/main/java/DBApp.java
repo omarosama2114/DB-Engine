@@ -13,7 +13,7 @@ public class DBApp{
     public void init() {
     }
 
-//TODO continue CSVReade and CSVWriter
+//TODO continue CSVReade and CSVWriter  //Done
 //TODO complete verifyBeforeInsert
 //TODO complete createIndex
 //TODO Complete DBApp
@@ -61,7 +61,7 @@ public class DBApp{
 
         // Read existing file
         CSVReader reader = new CSVReader(new FileReader(inputFile));
-        List<String[]> csvBody =reader.readAll();
+        List<String[]> csvBody = reader.readAll();
         HashMap<String, Boolean> columns = new HashMap<>();
         for(String[] splitted: csvBody) {
             if (splitted[0].equals(strTableName)) {
@@ -70,40 +70,35 @@ public class DBApp{
             }
         }
         if (!foundTable) {
+            reader.close();
             throw new DBAppException("No such table exist");
         }
         HashSet<String> count = new HashSet<>(List.of(strarrColName));
-        if(count.size() != 3)throw new DBAppException("Index must be created on 3 different columns");
+        if(count.size() != 3){
+            reader.close();
+            throw new DBAppException("Index must be created on 3 different columns");
+        }
         for(String str: strarrColName){
             if(!columns.containsKey(str) || columns.get(str)){
+                reader.close();
                 throw new DBAppException("Column not found or index already created on columns");
             }
         }
 
-
-
-        for(String[] x: csvBody)
-            System.out.println(Arrays.toString(x));
-        csvBody.get(0)[4] = "XYZINDEX";
-//         get CSV row column and replace with by using row and column
-        for(int i=0; i<csvBody.size(); i++){
-            String[] strArray = csvBody.get(i);
-            for(int j=0; j<strArray.length; j++){
-                if(strArray[j].equalsIgnoreCase("Update_date")){ //String to be replaced
-                    csvBody.get(i)[j] = "Updated_date"; //Target replacement
-                }
-            }
-        }
-        reader.close();
-
         // Write to CSV file which is open
         CSVWriter writer = new CSVWriter(new FileWriter(inputFile));
+        String indexName = strarrColName[0] + "" + strarrColName[1] + "" + strarrColName[2];
+        for(String[] x: csvBody) {
+            if(Objects.equals(x[0], strTableName) && count.contains(x[1])){
+                x[4] = indexName;
+                x[5] = "OCTree";
+            }
+        }
         writer.writeAll(csvBody);
-        for(String[] x: csvBody)
-            System.out.println(Arrays.toString(x));
         writer.flush();
         writer.close();
 
+        reader.close();
     }
 
     public void createIndex(String strTableName,
@@ -137,12 +132,13 @@ public class DBApp{
 
     public void verifyBeforeInsert(String strTableName, Hashtable<String, Object> htblColNameValue,
                                    StringBuilder clusteringKeyName)
-            throws DBAppException, IOException, ParseException, ClassNotFoundException {
+            throws DBAppException, IOException, ParseException, ClassNotFoundException, CsvException {
         boolean foundTable = false;
-        Scanner sc = new Scanner(new FileReader("meta-data.csv"));
+        File inputFile = new File("meta-data.csv");
+        CSVReader reader = new CSVReader(new FileReader(inputFile));
+        List<String[]> csvBody =reader.readAll();
         int cntColumns = 0; // check equal columns
-        while (sc.hasNext()) {
-            String[] splitted = sc.next().split(",");
+        for(String[] splitted: csvBody) {
             if (splitted[0].equals(strTableName)) {
                 cntColumns++;
                 foundTable = true;
@@ -151,7 +147,7 @@ public class DBApp{
                 }
                 if (!htblColNameValue.containsKey(splitted[1])) {
                     if(splitted[3].equals("true")){
-                        sc.close();
+                        reader.close();
                         throw new DBAppException("Clustering Key is missing");
                     }
                     htblColNameValue.put(splitted[1], new Null());
@@ -160,17 +156,17 @@ public class DBApp{
                 String type = htblColNameValue.get(splitted[1]).getClass().toString().substring(6);
                 System.out.println(type + " " +splitted[2]);
                 if (!type.equals(splitted[2])) {
-                    sc.close();
+                    reader.close();
                     throw new DBAppException("Type Mismatch Error");
                 }
                 Object currentObject = htblColNameValue.get(splitted[1]);
                 if (!checkTypeRange(currentObject, splitted[6], splitted[7])) {
-                    sc.close();
+                    reader.close();
                     throw new DBAppException("Ranges Exceeded Error");
                 }
             }
         }
-        sc.close();
+        reader.close();
         if (!foundTable) {
             throw new DBAppException("No such table exist");
         }
@@ -333,7 +329,7 @@ public class DBApp{
             insertionHandler(boundaries, pagesCount, strTableName, htblColNameValue, clusteringKeyName);
         } catch (ClassNotFoundException e) {
             throw new DBAppException("ClassNotFoundException was thrown.");
-        } catch (IOException e) {
+        } catch (IOException | CsvException e) {
             throw new DBAppException("Problem with IO happened.");
         } catch (ParseException e) {
             throw new DBAppException("Parse exception occurred.");
@@ -343,35 +339,36 @@ public class DBApp{
 
     public void verifyBeforeUpdate(String strTableName, Hashtable<String, Object> htblColNameValue,
                                    Object clusteringKeyValue)
-            throws DBAppException, FileNotFoundException, ParseException {
+            throws DBAppException, IOException, ParseException, CsvException {
 
         boolean foundTable = false;
-        Scanner sc = new Scanner(new FileReader("meta-data.csv"));
+        File file = new File("meta-data.csv");
+        CSVReader csvReader = new CSVReader(new FileReader(file));
+        List<String[]> colNames = csvReader.readAll();
         int cnt = 0;
-        while (sc.hasNext()) {
-            String[] splitted = sc.next().split(",");
+        for(String[] splitted : colNames) {
             if (splitted[0].equals(strTableName)) {
                 if (!splitted[3].equals("true"))
                     cnt++;
                 else continue;
                 foundTable = true;
                 if (!htblColNameValue.containsKey(splitted[1])) {
-                    sc.close();
+                    csvReader.close();
                     throw new DBAppException("Table content does not match");
                 }
                 String type = htblColNameValue.get(splitted[1]).getClass().toString().substring(6);
                 if (!type.equals(splitted[2])) {
-                    sc.close();
+                    csvReader.close();
                     throw new DBAppException("Type Mismatch Error");
                 }
                 Object currentObject = htblColNameValue.get(splitted[1]);
                 if (!checkTypeRange(currentObject, splitted[6], splitted[7])) {
-                    sc.close();
+                    csvReader.close();
                     throw new DBAppException("Ranges Exceeded Error");
                 }
             }
         }
-        sc.close();
+        csvReader.close();
         if (cnt != htblColNameValue.size()) {
             throw new DBAppException("Input table does not match dimension of original table");
         }
@@ -380,11 +377,12 @@ public class DBApp{
         }
     }
 
-    public Object getKey(String clusteringKeyValue, String strTableName) throws FileNotFoundException, ParseException, DBAppException {
-        Scanner sc = new Scanner(new FileReader("meta-data.csv"));
+    public Object getKey(String clusteringKeyValue, String strTableName) throws IOException, ParseException, DBAppException, CsvException {
+        File file = new File("meta-data.csv");
+        CSVReader csvReader = new CSVReader(new FileReader(file));
+        List<String[]> colNames = csvReader.readAll();
         int cnt = 0;
-        while (sc.hasNext()) {
-            String[] splitted = sc.next().split(",");
+        for(String[] splitted : colNames) {
             if (splitted[0].equals(strTableName)) {
                 if (splitted[3].equals("true")){
                     String now = splitted[2];
@@ -400,7 +398,7 @@ public class DBApp{
                 }
             }
         }
-        sc.close();
+        csvReader.close();
         throw new DBAppException("Clustering Key Parse problem");
     }
 
@@ -430,15 +428,18 @@ public class DBApp{
             throw new DBAppException("Problem with IO happened.");
         } catch (ParseException e) {
             throw new DBAppException("Parse exception occurred.");
+        } catch (CsvException e) {
+            throw new RuntimeException(e.getMessage());
         }
     }
 
-    public String getClusteringKeyName(String strTableName, Hashtable<String, Object> htblColNameValue) throws FileNotFoundException, DBAppException {
-        Scanner sc = new Scanner(new FileReader("meta-data.csv"));
+    public String getClusteringKeyName(String strTableName, Hashtable<String, Object> htblColNameValue) throws IOException, DBAppException, CsvException {
+        File file = new File("meta-data.csv");
+        CSVReader csvReader = new CSVReader(new FileReader(file));
+        List<String[]> colNames = csvReader.readAll();
         HashSet<String> columns = new HashSet<>();
         String temp = "";
-        while (sc.hasNext()) {
-            String[] splitted = sc.next().split(",");
+        for(String[] splitted : colNames) {
             if (splitted[0].equals(strTableName)) {
                 columns.add(splitted[1]);
                 if (splitted[3].equals("true")){
@@ -446,7 +447,7 @@ public class DBApp{
                 }
             }
         }
-        sc.close();
+        csvReader.close();
         if(columns.isEmpty()) throw new DBAppException("Table Not Found Or Table with No Clustering Key");
         for(String key: htblColNameValue.keySet()){
             if(!columns.contains(key)){
@@ -552,7 +553,7 @@ public class DBApp{
         
         } catch (ClassNotFoundException e) {
             throw new DBAppException("ClassNotFoundException was thrown.");
-        } catch (IOException e) {
+        } catch (IOException | CsvException e) {
             throw new DBAppException("Problem with IO happened.");
         }
         
