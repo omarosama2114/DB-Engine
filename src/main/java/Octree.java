@@ -6,11 +6,8 @@ import java.util.*;
 public class Octree implements Serializable{
     OctreeNode root;  // root node of the octree
     int nodeSize;
-
-    Octree(SerializablePageRecord record, Comparable x, Comparable y, Comparable z, Comparable minX,
-                     Comparable minY, Comparable minZ, Comparable maxX, Comparable maxY, Comparable maxZ) throws IOException {
+    Octree(Comparable minX, Comparable minY, Comparable minZ, Comparable maxX, Comparable maxY, Comparable maxZ) throws IOException {
         this.root = new OctreeNode(minX, minY, minZ, maxX, maxY, maxZ);
-        root.add(x , y , z, record);
         Properties prop = new Properties();
         String fileName = "src/main/resources/DBApp.config";
         FileInputStream fileInputStream = new FileInputStream(fileName);
@@ -18,7 +15,12 @@ public class Octree implements Serializable{
         this.nodeSize = Integer.parseInt(prop.getProperty("MaximumEntriesinOctreeNode"));
     }
 
-    void insert(Comparable x, Comparable y, Comparable z, SerializablePageRecord record) {
+
+    void insert(Comparable x, Comparable y, Comparable z, RecordReference record) {
+        if(this.root.data.size() == 0) {
+            this.root.add(x, y, z, record);
+            return;
+        }
         OctreeNode node = this.root;
         while (node.dummy) {
             Comparable[] cur = getIndex(node, x, y, z);
@@ -66,7 +68,7 @@ public class Octree implements Serializable{
                 node.children[(int)toBeInserted[0]] = new OctreeNode(toBeInserted[1], toBeInserted[2], toBeInserted[3],  
                             toBeInserted[4],  toBeInserted[5], toBeInserted[6]);
                 node.children[(int)toBeInserted[0]].data = (Vector<Tuple>)node.data.clone();
-                node.children[(int) toBeInserted[0]].records = (TreeMap<Tuple, Vector<SerializablePageRecord>>) node.records.clone();
+                node.children[(int) toBeInserted[0]].records = (TreeMap<Tuple, Vector<RecordReference>>) node.records.clone();
                 node.data.clear();
                 node.records.clear();
                 node = node.children[(int)toBeInserted[0]];
@@ -224,20 +226,36 @@ public class Octree implements Serializable{
         return par;
     }
 
-    void remove(Comparable x, Comparable y, Comparable z) {
+    void remove(Comparable x, Comparable y, Comparable z, Comparable clusteringKey) {
         OctreeNode node = search(x, y, z);
         if (node == null) return;
         OctreeNode par = searchForRemoval(x, y, z);
         int idx = -1;
-        for(int i = 0; i<node.data.size(); i++){
-            Tuple current = node.data.get(i);
-            if(current.x.compareTo(x) == 0 && current.y.compareTo(y) == 0 && current.z.compareTo(z) == 0){
+        Vector<RecordReference> r = node.records.getOrDefault(new Tuple(x, y, z) , null);
+        if(r == null) return;
+        for(int i = 0; i < r.size(); i++) {
+            if (r.get(i).clusteringKey.equals(clusteringKey)) {
                 idx = i;
                 break;
             }
         }
+
         if(idx == -1) return;
-        node.data.remove(idx);
+        r.remove(idx);
+
+        if(r.size() == 0) {
+            idx = -1;
+            for(int i = 0; i < node.data.size(); i++) {
+                if (node.data.get(i).x.equals(x) && node.data.get(i).y.equals(y) && node.data.get(i).z.equals(z)) {
+                    idx = i;
+                    break;
+                }
+            }
+            if(idx != -1) {
+                node.data.remove(idx);
+                node.records.remove(new Tuple(x, y, z));
+            }
+        }
 
         if(par == null || node.data.size() != 0){
             return;
@@ -248,7 +266,7 @@ public class Octree implements Serializable{
 
     OctreeNode search(Comparable x, Comparable y, Comparable z) {
         OctreeNode node = this.root;
-        while (node != null && node.dummy) {
+        while(node != null && node.dummy) {
             Comparable[] cur = getIndex(node, x, y, z);
             int index = (int) cur[0];
             node = node.children[index];
@@ -264,10 +282,28 @@ public class Octree implements Serializable{
         return null;
     }
 
-    void update(Comparable oldX, Comparable oldY, Comparable oldZ, Comparable newX, Comparable newY, Comparable newZ, SerializablePageRecord record) {
+    void update(Comparable oldX, Comparable oldY, Comparable oldZ, Comparable newX, Comparable newY, Comparable newZ, RecordReference record) {
         if(search(oldX, oldY, oldZ) == null) return;
-        remove(oldX, oldY, oldZ);
+        remove(oldX, oldY, oldZ, record.clusteringKey);
         insert(newX, newY, newZ, record);
+    }
+
+    void rename(HashMap<String , String> map, OctreeNode node) {
+        if(node == null) return;
+        if(node.dummy){
+            for(int i = 0; i<node.children.length; i++){
+                rename(map, node.children[i]);
+            }
+        }else{
+            for(Tuple current : node.data){
+                Vector<RecordReference> v = node.records.get(current);
+                for(RecordReference r : v) {
+                    String oldName = r.pageName;
+                    String newName = map.getOrDefault(oldName , oldName);
+                    r.pageName = newName;
+                }
+            }
+        }
     }
 }
 

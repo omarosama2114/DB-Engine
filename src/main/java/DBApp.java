@@ -10,13 +10,11 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 public class DBApp{
+
+//TODO Complete DBApp
+
     public void init() {
     }
-
-//TODO continue CSVReade and CSVWriter  //Done
-//TODO complete verifyBeforeInsert
-//TODO complete createIndex
-//TODO Complete DBApp
 
     public void createTable(String strTableName,
                             String strClusteringKeyColumn,
@@ -55,10 +53,10 @@ public class DBApp{
         }
     }
 
-    public void verifyBeforeIndex(String strTableName, String[] strarrColName) throws DBAppException, IOException, CsvException {
+    public void verifyBeforeIndex
+            (String strTableName, String[] strarrColName, Vector<Comparable> min, Vector<Comparable> max ) throws DBAppException, IOException, CsvException, ParseException {
         boolean foundTable = false;
         File inputFile = new File("meta-data.csv");
-
         // Read existing file
         CSVReader reader = new CSVReader(new FileReader(inputFile));
         List<String[]> csvBody = reader.readAll();
@@ -87,11 +85,27 @@ public class DBApp{
 
         // Write to CSV file which is open
         CSVWriter writer = new CSVWriter(new FileWriter(inputFile));
-        String indexName = strarrColName[0] + "" + strarrColName[1] + "" + strarrColName[2];
+        String indexName = strarrColName[0] + "_" + strarrColName[1] + "_" + strarrColName[2];
         for(String[] x: csvBody) {
             if(Objects.equals(x[0], strTableName) && count.contains(x[1])){
                 x[4] = indexName;
                 x[5] = "OCTree";
+                if(x[2].equals("java.lang.Integer")) {
+                   min.add(Integer.parseInt(x[6]));
+                   max.add(Integer.parseInt(x[7]));
+                }
+                else if(x[2].equals("java.lang.Double")) {
+                    min.add(Double.parseDouble(x[6]));
+                    max.add(Double.parseDouble(x[7]));
+                }
+                else if(x[2].equals("java.lang.String")) {
+                    min.add(x[6]);
+                    max.add(x[7]);
+                }
+                else if(x[2].equals("java.util.Date")) {
+                    min.add(new SimpleDateFormat("yyyy-MM-dd").parse(x[6]));
+                    max.add(new SimpleDateFormat("yyyy-MM-dd").parse(x[7]));
+                }
             }
         }
         writer.writeAll(csvBody);
@@ -101,12 +115,32 @@ public class DBApp{
         reader.close();
     }
 
-    public void createIndex(String strTableName,
-                            String[] strarrColName) throws DBAppException {
+    public void createIndex(String strTableName, String[] strarrColName) throws DBAppException {
+        try {
+            Vector<Comparable> colMin = new Vector<>();
+            Vector<Comparable> colMax = new Vector<>();
+            verifyBeforeIndex(strTableName, strarrColName, colMin, colMax);
+            Octree octree = new Octree(colMin.get(0), colMax.get(0), colMin.get(1), colMax.get(1), colMin.get(2), colMax.get(2));
+            int size = getTableSize(strTableName);
+            for(int i = 1; i <= size; i++) {
+                Page p = readFromPage(strTableName, i);
+                for(int j = 0; j < p.pageData.size(); j++) {
+                    SerializablePageRecord spr = p.pageData.get(j);
+                    RecordReference r = new RecordReference(i+"", spr.clusteringKey);
+                    Vector<Comparable> temp = new Vector<>();
+                    for(int k = 0; k < strarrColName.length; k++) {
+                        temp.add((Comparable) spr.recordHash.get(strarrColName[k]));
+                    }
+                    octree.insert(temp.get(0), temp.get(1), temp.get(2), r);
+                }
+            }
+            String indexName = strarrColName[0] + "_" + strarrColName[1] + "_" + strarrColName[2];
+            writeToOctree(octree, strTableName, indexName);
 
-
+        } catch (IOException | CsvException | ParseException | ClassNotFoundException e) {
+            throw new RuntimeException(e.getMessage());
+        }
     }
-
 
     public boolean checkTypeRange(Object o, String min, String max) throws ParseException {
         if (o instanceof Integer) {
@@ -210,6 +244,23 @@ public class DBApp{
         return b;
     }
 
+    public void writeToOctree(Octree tree, String strTableName, String name) throws IOException {
+        FileOutputStream fos = new FileOutputStream(strTableName + "_index/" + name + ".class");
+        ObjectOutputStream oos = new ObjectOutputStream(fos);
+        oos.writeObject(tree);
+        fos.close();
+        oos.close();
+    }
+
+    public Octree readFromOctree(String strTableName, String name) throws IOException, ClassNotFoundException {
+        FileInputStream fis = new FileInputStream(strTableName + "_index/" + name + ".class");
+        ObjectInputStream ois = new ObjectInputStream(fis);
+        Octree b = (Octree) ois.readObject();
+        ois.close();
+        fis.close();
+        return b;
+    }
+
     public int recordBinarySearch(Vector<SerializablePageRecord> records, Comparable clusteringKey)
             throws IOException, ClassNotFoundException {
         int low = 0, high = records.size() - 1, ans = -1;
@@ -229,11 +280,13 @@ public class DBApp{
                       int maxPages) throws IOException, ClassNotFoundException {
         Page p = readFromPage(strTableName, pageNum);
         Vector<SerializablePageRecord> records = p.pageData;
+        RecordReference rr = new RecordReference(pageNum+"", spr.clusteringKey);
         int ans = recordBinarySearch(records, spr.clusteringKey);
-        if (ans == -1) {
+        if (ans == -1)
             records.add(spr);
-        } else
+        else
             records.insertElementAt(spr, ans);
+        insertIntoAllOctrees(strTableName, spr.recordHash, rr);
         writeToPage(strTableName, p, pageNum);
         int idx = pageNum;
         SerializablePageRecord sprTmp = null;
@@ -241,6 +294,7 @@ public class DBApp{
             Page currPage = readFromPage(strTableName, idx);
             if (sprTmp != null) {
                 currPage.pageData.insertElementAt(sprTmp, 0);
+                updateInAllOctrees(strTableName, sprTmp, idx);
             }
             if (currPage.pageData.size() <= currPage.maxRows) {
                 sprTmp = null;
@@ -253,6 +307,31 @@ public class DBApp{
         }
         if (sprTmp != null) {
             createPage(strTableName, idx, sprTmp);
+            updateInAllOctrees(strTableName, sprTmp, idx);
+        }
+    }
+
+    //TODO
+    //Rename record oldname to newname in all octrees
+    public void renameInAllOctrees(HashMap<String, String> name) throws IOException, ClassNotFoundException {
+        
+    }
+
+    public void updateInAllOctrees(String strTableName, SerializablePageRecord srp,  int idx) throws IOException, ClassNotFoundException {
+        File tableFolder = new File(strTableName);
+        String[] fileNames = tableFolder.list();
+        RecordReference rr = new RecordReference(idx+"", srp.clusteringKey);
+        for(String fileName : fileNames) {
+            if (fileName.endsWith(".class")) {
+                String[] tmp = fileName.split("\\.");
+                String[] tmp2 = tmp[0].split("_");
+                Comparable x = (Comparable) srp.recordHash.get(tmp2[0]);
+                Comparable y = (Comparable) srp.recordHash.get(tmp2[1]);
+                Comparable z = (Comparable) srp.recordHash.get(tmp2[2]);
+                Octree tree = readFromOctree(strTableName, tmp[0]);
+                tree.update(x, y, z, x, y, z, rr);
+                writeToOctree(tree, strTableName, tmp[0]);
+            }
         }
     }
 
@@ -270,13 +349,20 @@ public class DBApp{
         int second = boundaries[1];
         Comparable clusteringKey = (Comparable) htblColNameValue.get(clusteringKeyName.toString());
         SerializablePageRecord a = createRecord(htblColNameValue, clusteringKey);
+        RecordReference r = null;
         if (pagesCount == 0) {
+            r = new RecordReference("1", 0);
+            insertIntoAllOctrees(strTableName, htblColNameValue, r);
             createPage(strTableName, 1, a);
         } else if (second == pagesCount + 1) {
             Page b = readFromPage(strTableName, first);
             if (b.maxRows == b.pageData.size()) {
+                r = new RecordReference(first + 1 + "", 0);
+                insertIntoAllOctrees(strTableName, htblColNameValue, r);
                 createPage(strTableName, first + 1, a);
             } else {
+                r = new RecordReference(first + "", b.pageData.size());
+                insertIntoAllOctrees(strTableName, htblColNameValue, r);
                 b.addRecord(a);
                 writeToPage(strTableName, b, first);
             }
@@ -285,6 +371,25 @@ public class DBApp{
             shift(a, strTableName, first, pagesCount);
         }
     }
+
+    public void insertIntoAllOctrees
+            (String strTableName, Hashtable<String, Object> htblColNameValue, RecordReference r) throws IOException, ClassNotFoundException {
+        File tableFolder = new File(strTableName);
+        String[] fileNames = tableFolder.list();
+        for(String fileName : fileNames) {
+            if (fileName.endsWith(".class")) {
+                String[] tmp = fileName.split("\\.");
+                String[] tmp2 = tmp[0].split("_");
+                Comparable x = (Comparable) htblColNameValue.get(tmp2[0]);
+                Comparable y = (Comparable) htblColNameValue.get(tmp2[1]);
+                Comparable z = (Comparable) htblColNameValue.get(tmp2[2]);
+                Octree tree = readFromOctree(strTableName, tmp[0]);
+                tree.insert(x, y, z, r);
+                writeToOctree(tree, strTableName, tmp[0]);
+            }
+        }
+    }
+
 
     public int[] pagesBinarySearch(int pagesCount, Comparable id, String strTableName)
             throws IOException, ClassNotFoundException {
@@ -484,7 +589,8 @@ public class DBApp{
                 for(int i = 1; i<=size; i++) {
                     toBeDeleted.add(i);
                 }
-            }else if(htblColNameValue.containsKey(clusteringKeyName)) {
+            }
+            else if(htblColNameValue.containsKey(clusteringKeyName)) {
                     int[] boundaries = pagesBinarySearch(pagesCount, (Comparable) htblColNameValue.get(clusteringKeyName), strTableName);
                     boolean matched = true;
                     if (boundaries[0] != boundaries[1]) {
@@ -518,7 +624,8 @@ public class DBApp{
                     writeToPage(strTableName, currentPage, boundaries[0]);
                 }
                 
-            }else {
+            }
+            else {
                 for(int i = 1; i<=pagesCount; i++){
                     Page currentPage = readFromPage(strTableName, i);
                     for(SerializablePageRecord currentRecord: (Vector<SerializablePageRecord>) currentPage.pageData.clone()){
@@ -536,7 +643,8 @@ public class DBApp{
                     if(currentPage.pageData.isEmpty()){
                         toBeDeleted.add(i);
                         found.add(i);
-                    }else{
+                    }
+                    else{
                         writeToPage(strTableName, currentPage, i);
                     }
                 }
@@ -546,7 +654,8 @@ public class DBApp{
             for(int i = 1; i<=pagesCount; i++){
                 if(found.contains(i)){
                     cnt++;
-                }else if(cnt > 0){
+                }
+                else if(cnt > 0){
                     renameFile(strTableName, i, i - cnt);
                 }
             }

@@ -10,7 +10,7 @@ import java.util.Vector;
 public class OctreeNode implements Serializable{
     Comparable minX , maxX ,minY , maxY ,minZ , maxZ;
     Vector<Tuple> data;
-    TreeMap<Tuple, Vector<SerializablePageRecord>> records;
+    TreeMap<Tuple, Vector<RecordReference>> records;
     OctreeNode[] children;
     boolean dummy;
     OctreeNode(Comparable minX, Comparable minY, Comparable minZ, Comparable maxX, Comparable maxY, Comparable maxZ){
@@ -27,17 +27,17 @@ public class OctreeNode implements Serializable{
         records = new TreeMap<>();
     }
 
-    void add(Comparable x, Comparable y, Comparable z, SerializablePageRecord record) {
+    void add(Comparable x, Comparable y, Comparable z, RecordReference record) {
         Tuple newTuple = new Tuple(x, y, z);
-        Vector<SerializablePageRecord> myData = records.getOrDefault(newTuple, new Vector<>());
+        Vector<RecordReference> myData = records.getOrDefault(newTuple, new Vector<>());
         if(myData.size() == 0)data.add(newTuple);
         myData.add(record);
         records.put(newTuple, myData);
     }
 
-    void add(Comparable x, Comparable y, Comparable z, Vector<SerializablePageRecord> records){
+    void add(Comparable x, Comparable y, Comparable z, Vector<RecordReference   > records){
         Tuple newTuple = new Tuple(x, y, z);
-        Vector<SerializablePageRecord> myData = this.records.getOrDefault(newTuple, new Vector<>());
+        Vector<RecordReference> myData = this.records.getOrDefault(newTuple, new Vector<>());
         if(myData.size() == 0)data.add(newTuple);
         myData.addAll(records);
         this.records.put(newTuple, myData);
