@@ -25,7 +25,7 @@ public class Octree implements Serializable{
     }
 
     void insert(Comparable x, Comparable y, Comparable z, RecordReference record) {
-        if(this.root.data.size() == 0) {
+        if(this.root.data.size() == 0 && !this.root.dummy){
             this.root.add(x, y, z, record);
             return;
         }
@@ -288,6 +288,44 @@ public class Octree implements Serializable{
             }
         }
         return null;
+    }
+
+    Vector<RecordReference> goAndGetAll(OctreeNode node){
+        Vector<RecordReference> res = new Vector<>();
+        if(node == null) return res;
+        if(!node.dummy){
+            for(Tuple t : node.records.keySet()){
+                res.addAll(node.records.get(t));
+            }
+            return res;
+        }
+        for(OctreeNode child : node.children){
+            res.addAll(goAndGetAll(child));
+        }
+        return res;
+    }
+
+    Vector<RecordReference> rangeQuery(OctreeNode node, Comparable minX, Comparable maxX, Comparable minY, Comparable maxY, Comparable minZ, Comparable maxZ){
+        if(node == null || minX.compareTo(maxX) > 0 || minY.compareTo(maxY) > 0 || minZ.compareTo(maxZ) > 0)return new Vector<>();
+        if(node.maxX.compareTo(minX) < 0)return new Vector<>();
+        if(node.minX.compareTo(maxX) > 0)return new Vector<>();
+        if(node.maxY.compareTo(minY) < 0)return new Vector<>();
+        if(node.minY.compareTo(maxY) > 0)return new Vector<>();
+        if(node.maxZ.compareTo(minZ) < 0)return new Vector<>();
+        if(node.minZ.compareTo(maxZ) > 0)return new Vector<>();
+        if(node.minX.compareTo(minX) >= 0 && node.maxX.compareTo(maxX) <= 0 && node.minY.compareTo(minY) >= 0 && node.maxY.compareTo(maxY) <= 0 &&node.minZ.compareTo(minZ) >= 0 && node.maxZ.compareTo(maxZ) <= 0)
+            return goAndGetAll(node);
+        Vector<RecordReference> res = new Vector<>();
+        if(!node.dummy){
+            for(Tuple t : node.records.keySet()){
+                if(t.x.compareTo(minX) >= 0 && t.x.compareTo(maxX) <= 0 && t.y.compareTo(minY) >= 0 && t.y.compareTo(maxY) <= 0 && t.z.compareTo(minZ) >= 0 && t.z.compareTo(maxZ) <= 0)
+                    res.addAll(node.records.get(t));
+            }
+            return res;
+        }
+        for(OctreeNode child : node.children)
+            res.addAll(rangeQuery(child, minX, maxX, minY, maxY, minZ, maxZ));
+        return res;
     }
 
     Vector<RecordReference> searchReferences(Comparable x, Comparable y, Comparable z) {

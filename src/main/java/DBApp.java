@@ -783,7 +783,7 @@ public class DBApp{
         }
     }
 
-    public boolean HasIndex(String strTableName, HashSet<String> htblcolName) throws IOException, ClassNotFoundException {
+    public String HasIndex(String strTableName, HashSet<String> htblcolName) throws IOException, ClassNotFoundException {
         File tableFolder = new File(strTableName);
         String[] fileNames = tableFolder.list();
         Vector<RecordReference> references = new Vector<>();
@@ -792,12 +792,12 @@ public class DBApp{
                 String[] tmp = fileName.split("\\.");
                 String[] tmp2 = tmp[0].split("_");
                 if(!htblcolName.contains(tmp2[0]) || !htblcolName.contains(tmp2[1]) || !htblcolName.contains(tmp2[2]))continue;
-                return true;
+                return tmp[0];
                 //tree.remove(htblcolNameValue.get(tmp2[0]), htblcolNameValue.get(tmp2[1]), htblcolNameValue());
                 //writeToOctree(tree, strTableName, tmp[0]);
             }
         }
-        return false;
+        return "";
     }
 
     public Vector<SerializablePageRecord> linearScan(String strTableName , SQLTerm[] arrSQLTerms, String[] strarrOperators) throws DBAppException, IOException, ClassNotFoundException {
@@ -807,8 +807,8 @@ public class DBApp{
             Page current = readFromPage(strTableName, i);
             for (SerializablePageRecord spr : current.pageData) {
                 boolean  flag2 = true;
-                int j = 0;
-                for (SQLTerm sqlTerm : arrSQLTerms) {
+                for (int j = 0; j<arrSQLTerms.length; j++) {
+                    SQLTerm sqlTerm = arrSQLTerms[j];
                     boolean flag = true;
                     if (!sqlTerm._strTableName.equals(strTableName) || !spr.recordHash.containsKey(sqlTerm._strColumnName))
                         throw new DBAppException("Table name/content is not correct");
@@ -839,21 +839,24 @@ public class DBApp{
                             flag = false;
                         }
                     }
-                    String operator = strarrOperators[j++];
-                    if (operator.equals("AND")) {
-                        if (!flag) {
-                            flag2 = false;
-                        }
-                    } else if (operator.equals("OR")) {
-                        if (flag) {
-                            flag2 = true;
-                            break;
-                        }
-                    } else if (operator.equals("XOR")) {
-                        if (flag) {
-                            flag2 = !flag2;
+                    if (j > 0) {
+                        String operator = strarrOperators[j-1];
+                        if (operator.equals("AND")) {
+                            if (!flag) {
+                                flag2 = false;
+                            }
+                        } else if (operator.equals("OR")) {
+                            if (flag) {
+                                flag2 = true;
+                            }
+                        } else if (operator.equals("XOR")) {
+                            if (flag) {
+                                flag2 = !flag2;
+                            }
                         }
                     }
+                    else
+                        flag2 = flag;
                 }
                 if (flag2) {
                     resultSet.add(spr);
@@ -863,8 +866,13 @@ public class DBApp{
         return resultSet;
     }
     //TODO: return the recordHash or SerializablePageRecord itSelf?
-    public void rangeQueries(){
 
+
+    public void rangeQueries(SQLTerm[] arrSQLTerms , String[] strarrOperators) throws IOException, ClassNotFoundException {
+        HashSet<String> colNames = new HashSet<>();
+        for (SQLTerm s : arrSQLTerms) colNames.add(s._strColumnName);
+        String indexName = HasIndex(arrSQLTerms[0]._strTableName, colNames);
+        Octree tree = readFromOctree(arrSQLTerms[0]._strTableName, indexName);
     }
 
     public Iterator selectFromTable(SQLTerm[] arrSQLTerms, String[] strarrOperators) throws DBAppException{
@@ -876,7 +884,7 @@ public class DBApp{
             for (SQLTerm s : arrSQLTerms) {
                 colNames.add(s._strColumnName);
             }
-            if (flag || !HasIndex(arrSQLTerms[0]._strTableName, colNames)) {
+            if (flag || HasIndex(arrSQLTerms[0]._strTableName, colNames).isEmpty()) {
                 Vector<SerializablePageRecord> resultSet = linearScan(arrSQLTerms[0]._strTableName, arrSQLTerms, strarrOperators);
                 selectIterator = new SelectIterator(resultSet);
             } else {
