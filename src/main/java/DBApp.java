@@ -630,7 +630,6 @@ public class DBApp{
                 //writeToOctree(tree, strTableName, tmp[0]);
             }
         }
-
         return references;
     }
 
@@ -783,14 +782,115 @@ public class DBApp{
             throw new DBAppException("Problem with IO happened.");
         }
     }
+
+    public boolean HasIndex(String strTableName, HashSet<String> htblcolName) throws IOException, ClassNotFoundException {
+        File tableFolder = new File(strTableName);
+        String[] fileNames = tableFolder.list();
+        Vector<RecordReference> references = new Vector<>();
+        for(String fileName : fileNames) {
+            if (fileName.endsWith(".class")) {
+                String[] tmp = fileName.split("\\.");
+                String[] tmp2 = tmp[0].split("_");
+                if(!htblcolName.contains(tmp2[0]) || !htblcolName.contains(tmp2[1]) || !htblcolName.contains(tmp2[2]))continue;
+                return true;
+                //tree.remove(htblcolNameValue.get(tmp2[0]), htblcolNameValue.get(tmp2[1]), htblcolNameValue());
+                //writeToOctree(tree, strTableName, tmp[0]);
+            }
+        }
+        return false;
+    }
+
+    public Vector<SerializablePageRecord> linearScan(String strTableName , SQLTerm[] arrSQLTerms, String[] strarrOperators) throws DBAppException, IOException, ClassNotFoundException {
+        int tableSize = getTableSize(strTableName);
+        Vector<SerializablePageRecord> resultSet = new Vector<>();
+        for (int i = 1; i <= tableSize; i++) {
+            Page current = readFromPage(strTableName, i);
+            for (SerializablePageRecord spr : current.pageData) {
+                boolean  flag2 = true;
+                int j = 0;
+                for (SQLTerm sqlTerm : arrSQLTerms) {
+                    boolean flag = true;
+                    if (!sqlTerm._strTableName.equals(strTableName) || !spr.recordHash.containsKey(sqlTerm._strColumnName))
+                        throw new DBAppException("Table name/content is not correct");
+                    if (!sqlTerm._strOperator.equals("=")) {
+                        if (sqlTerm._strOperator.equals(">")) {
+                            if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) <= 0) {
+                                flag = false;
+                            }
+                        } else if (sqlTerm._strOperator.equals(">=")) {
+                            if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) < 0) {
+                                flag = false;
+                            }
+                        } else if (sqlTerm._strOperator.equals("<")) {
+                            if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) >= 0) {
+                                flag = false;
+                            }
+                        } else if (sqlTerm._strOperator.equals("<=")) {
+                            if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) > 0) {
+                                flag = false;
+                            }
+                        } else if (sqlTerm._strOperator.equals("!=")) {
+                            if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) == 0) {
+                                flag = false;
+                            }
+                        }
+                    } else {
+                        if (!spr.recordHash.get(sqlTerm._strColumnName).equals(sqlTerm._objValue)) {
+                            flag = false;
+                        }
+                    }
+                    String operator = strarrOperators[j++];
+                    if (operator.equals("AND")) {
+                        if (!flag) {
+                            flag2 = false;
+                        }
+                    } else if (operator.equals("OR")) {
+                        if (flag) {
+                            flag2 = true;
+                            break;
+                        }
+                    } else if (operator.equals("XOR")) {
+                        if (flag) {
+                            flag2 = !flag2;
+                        }
+                    }
+                }
+                if (flag2) {
+                    resultSet.add(spr);
+                }
+            }
+        }
+        return resultSet;
+    }
+    //TODO: return the recordHash or SerializablePageRecord itSelf?
+    public void rangeQueries(){
+
+    }
+
+    public Iterator selectFromTable(SQLTerm[] arrSQLTerms, String[] strarrOperators) throws DBAppException{
+        try {
+            boolean flag = false;
+            for (String s : strarrOperators) flag |= (s.equals("OR") || s.equals("XOR"));
+            HashSet<String> colNames = new HashSet<>();
+            SelectIterator selectIterator = null;
+            for (SQLTerm s : arrSQLTerms) {
+                colNames.add(s._strColumnName);
+            }
+            if (flag || !HasIndex(arrSQLTerms[0]._strTableName, colNames)) {
+                Vector<SerializablePageRecord> resultSet = linearScan(arrSQLTerms[0]._strTableName, arrSQLTerms, strarrOperators);
+                selectIterator = new SelectIterator(resultSet);
+            } else {
+
+            }
+            return selectIterator;
+        } catch (IOException | ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
     
-    /*public Iterator selectFromTable(SQLTerm[] arrSQLTerms,
-    String[] strarrOperators)
-    throws DBAppException{}
-    
-    public Iterator parseSQL( StringBuffer strbufSQL ) throws
-    DBAppException{}
-    */
+//    public Iterator parseSQL( StringBuffer strbufSQL ) throws
+//    DBAppException{}
+
     
     
     public static void main(String[] args) throws DBAppException, IOException, ParseException, ClassNotFoundException {
