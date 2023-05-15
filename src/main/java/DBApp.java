@@ -184,8 +184,8 @@ public class DBApp{
                         reader.close();
                         throw new DBAppException("Clustering Key is missing");
                     }
-                    htblColNameValue.put(splitted[1], new Null());
-                    continue;
+                    throw new DBAppException("Column is missing");
+
                 }
                 String type = htblColNameValue.get(splitted[1]).getClass().toString().substring(6);
                 System.out.println(type + " " +splitted[2]);
@@ -294,7 +294,7 @@ public class DBApp{
             Page currPage = readFromPage(strTableName, idx);
             if (sprTmp != null) {
                 currPage.pageData.insertElementAt(sprTmp, 0);
-                updateInAllOctrees(strTableName, sprTmp, idx);
+                updateInAllOctrees(strTableName, sprTmp, idx, new Hashtable<>());
             }
             if (currPage.pageData.size() <= currPage.maxRows) {
                 sprTmp = null;
@@ -307,7 +307,7 @@ public class DBApp{
         }
         if (sprTmp != null) {
             createPage(strTableName, idx, sprTmp);
-            updateInAllOctrees(strTableName, sprTmp, idx);
+            updateInAllOctrees(strTableName, sprTmp, idx, new Hashtable<>());
         }
     }
 
@@ -317,7 +317,7 @@ public class DBApp{
         
     }
 
-    public void updateInAllOctrees(String strTableName, SerializablePageRecord srp,  int idx) throws IOException, ClassNotFoundException {
+    public void updateInAllOctrees(String strTableName, SerializablePageRecord srp, int idx, Hashtable<String, Object> newData) throws IOException, ClassNotFoundException {
         File tableFolder = new File(strTableName);
         String[] fileNames = tableFolder.list();
         RecordReference rr = new RecordReference(idx+"", srp.clusteringKey);
@@ -328,8 +328,28 @@ public class DBApp{
                 Comparable x = (Comparable) srp.recordHash.get(tmp2[0]);
                 Comparable y = (Comparable) srp.recordHash.get(tmp2[1]);
                 Comparable z = (Comparable) srp.recordHash.get(tmp2[2]);
+                Comparable newX = (Comparable) newData.getOrDefault(tmp2[0], x);
+                Comparable newY = (Comparable) newData.getOrDefault(tmp2[1], y);
+                Comparable newZ = (Comparable) newData.getOrDefault(tmp2[2], z);
                 Octree tree = readFromOctree(strTableName, tmp[0]);
-                tree.update(x, y, z, x, y, z, rr);
+                tree.update(x, y, z, newX, newY, newZ, rr);
+                writeToOctree(tree, strTableName, tmp[0]);
+            }
+        }
+    }
+
+    public void deleteFromAllOctrees(String strTableName, SerializablePageRecord spr) throws IOException, ClassNotFoundException {
+        File tableFolder = new File(strTableName);
+        String[] fileNames = tableFolder.list();
+        for(String fileName : fileNames) {
+            if (fileName.endsWith(".class")) {
+                String[] tmp = fileName.split("\\.");
+                String[] tmp2 = tmp[0].split("_");
+                Comparable x = (Comparable) spr.recordHash.get(tmp2[0]);
+                Comparable y = (Comparable) spr.recordHash.get(tmp2[1]);
+                Comparable z = (Comparable) spr.recordHash.get(tmp2[2]);
+                Octree tree = readFromOctree(strTableName, tmp[0]);
+                tree.remove(x, y, z, spr.clusteringKey);
                 writeToOctree(tree, strTableName, tmp[0]);
             }
         }
@@ -524,8 +544,10 @@ public class DBApp{
             SerializablePageRecord spr = p.pageData.get(idx);
             if (spr.clusteringKey.compareTo(clusteringKey) != 0)
                 throw new DBAppException("Clustering Key does not exist");
-            for(String key : htblColNameValue.keySet())
+            updateInAllOctrees(strTableName, spr, boundaries[0], htblColNameValue);
+            for(String key : htblColNameValue.keySet()) {
                 spr.recordHash.put(key, htblColNameValue.get(key));
+            }
             writeToPage(strTableName, p, boundaries[0]);
         } catch (ClassNotFoundException e) {
             throw new DBAppException("ClassNotFoundException was thrown.");
@@ -574,6 +596,44 @@ public class DBApp{
         File newFile = new File(strTableName + "/" + newIdx + ".class");
         oldFile.renameTo(newFile);
     }
+
+    public void resetOctrees(String strTableName) throws IOException, ClassNotFoundException {
+        File tableFolder = new File(strTableName);
+        String[] fileNames = tableFolder.list();
+        for(String fileName : fileNames) {
+            if (fileName.endsWith(".class")) {
+                String[] tmp = fileName.split("\\.");
+                Octree tree = readFromOctree(strTableName, tmp[0]);
+                tree.reset();
+                writeToOctree(tree, strTableName, tmp[0]);
+            }
+        }
+    }
+
+    public Vector<RecordReference> removeInAllOctrees(String strTableName, Hashtable<String, Object> htblcolNameValue) throws IOException, ClassNotFoundException {
+        File tableFolder = new File(strTableName);
+        String[] fileNames = tableFolder.list();
+        Vector<RecordReference> references = new Vector<>();
+        for(String fileName : fileNames) {
+            if (fileName.endsWith(".class")) {
+                String[] tmp = fileName.split("\\.");
+                String[] tmp2 = tmp[0].split("_");
+                if(!htblcolNameValue.containsKey(tmp2[0]) || !htblcolNameValue.containsKey(tmp2[1])
+                        || !htblcolNameValue.containsKey(tmp2[2]))continue;
+                Octree tree = readFromOctree(strTableName, tmp[0]);
+                Comparable x = (Comparable) htblcolNameValue.get(tmp2[0]);
+                Comparable y = (Comparable) htblcolNameValue.get(tmp2[1]);
+                Comparable z = (Comparable) htblcolNameValue.get(tmp2[2]);
+                references = tree.searchReferences(x, y, z);
+                break;
+                //tree.remove(htblcolNameValue.get(tmp2[0]), htblcolNameValue.get(tmp2[1]), htblcolNameValue());
+                //writeToOctree(tree, strTableName, tmp[0]);
+            }
+        }
+
+        return references;
+    }
+
     public void deleteFromTable(String strTableName,
                                 Hashtable<String, Object> htblColNameValue)
             throws DBAppException {
@@ -589,63 +649,120 @@ public class DBApp{
                 for(int i = 1; i<=size; i++) {
                     toBeDeleted.add(i);
                 }
+                resetOctrees(strTableName);
             }
             else if(htblColNameValue.containsKey(clusteringKeyName)) {
+
+
+                Vector<RecordReference> temp = removeInAllOctrees(strTableName, htblColNameValue);
+                if(temp.isEmpty()) {
                     int[] boundaries = pagesBinarySearch(pagesCount, (Comparable) htblColNameValue.get(clusteringKeyName), strTableName);
-                    boolean matched = true;
                     if (boundaries[0] != boundaries[1]) {
-                        matched = false;
                         return;
                     }
-                    
                     Page currentPage = readFromPage(strTableName, boundaries[0]);
                     int idx = recordBinarySearch(currentPage.pageData, (Comparable) htblColNameValue.get(clusteringKeyName));
                     if (idx == -1 || currentPage.maxRows <= idx || !currentPage.pageData.get(idx).clusteringKey.equals(htblColNameValue.get(clusteringKeyName))) {
-                        matched = false;
                         return;
                     }
-                    
+
+
                     SerializablePageRecord currentRecord = currentPage.pageData.get(idx);
                     for (String key : currentRecord.recordHash.keySet()) {
                         if (htblColNameValue.containsKey(key)
                                 && ((currentRecord.recordHash.get(key) instanceof Null) || !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key)))) {
-                            matched = false;
                             return;
                         }
                     }
-                    if(matched) {
-                        currentPage.pageData.remove(idx);
-                    }
-                    
-                    if(currentPage.pageData.isEmpty()){
+
+                    currentPage.pageData.remove(idx);
+                    if (currentPage.pageData.isEmpty()) {
                         toBeDeleted.add(boundaries[0]);
                         found.add(boundaries[0]);
-                    }else{
-                    writeToPage(strTableName, currentPage, boundaries[0]);
+                    } else {
+                        writeToPage(strTableName, currentPage, boundaries[0]);
+                    }
                 }
-                
-            }
-            else {
-                for(int i = 1; i<=pagesCount; i++){
-                    Page currentPage = readFromPage(strTableName, i);
-                    for(SerializablePageRecord currentRecord: (Vector<SerializablePageRecord>) currentPage.pageData.clone()){
-                        boolean matched = true;
+                else {
+                    w:for(RecordReference r : temp) {
+                        Page currentPage = readFromPage(strTableName, Integer.parseInt(r.pageName));
+                        int idx = recordBinarySearch(currentPage.pageData, (Comparable) htblColNameValue.get(clusteringKeyName));
+                        if (idx == -1 || currentPage.maxRows <= idx || !currentPage.pageData.get(idx).clusteringKey.equals(htblColNameValue.get(clusteringKeyName))) {
+                            continue;
+                        }
+
+
+                        SerializablePageRecord currentRecord = currentPage.pageData.get(idx);
                         for (String key : currentRecord.recordHash.keySet()) {
                             if (htblColNameValue.containsKey(key)
                                     && ((currentRecord.recordHash.get(key) instanceof Null) || !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key)))) {
-                                matched = false;
+                                continue w;
                             }
                         }
-                        if(matched){
-                            currentPage.pageData.remove(currentRecord);
+
+                        deleteFromAllOctrees(strTableName, currentPage.pageData.get(idx));
+                        currentPage.pageData.remove(idx);
+                        if (currentPage.pageData.isEmpty()) {
+                            toBeDeleted.add(Integer.parseInt(r.pageName));
+                            found.add(Integer.parseInt(r.pageName));
+                        } else {
+                            writeToPage(strTableName, currentPage, Integer.parseInt(r.pageName));
+                        }
+
+                    }
+                }
+            }
+
+            else {
+                Vector<RecordReference> temp = removeInAllOctrees(strTableName, htblColNameValue);
+                if(temp.isEmpty()) {
+                    for (int i = 1; i <= pagesCount; i++) {
+                        Page currentPage = readFromPage(strTableName, i);
+                        for (SerializablePageRecord currentRecord : (Vector<SerializablePageRecord>) currentPage.pageData.clone()) {
+                            boolean matched = true;
+                            for (String key : currentRecord.recordHash.keySet()) {
+                                if (htblColNameValue.containsKey(key)
+                                        && ((currentRecord.recordHash.get(key) instanceof Null) || !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key)))) {
+                                    matched = false;
+                                }
+                            }
+                            if (matched) {
+                                currentPage.pageData.remove(currentRecord);
+                            }
+                        }
+                        if (currentPage.pageData.isEmpty()) {
+                            toBeDeleted.add(i);
+                            found.add(i);
+                        } else {
+                            writeToPage(strTableName, currentPage, i);
                         }
                     }
-                    if(currentPage.pageData.isEmpty()){
-                        toBeDeleted.add(i);
-                        found.add(i);
-                    }
-                    else{
-                        writeToPage(strTableName, currentPage, i);
+                }else{
+                    w:for(RecordReference r : temp) {
+                        Page currentPage = readFromPage(strTableName, Integer.parseInt(r.pageName));
+                        int idx = recordBinarySearch(currentPage.pageData, (Comparable) htblColNameValue.get(clusteringKeyName));
+                        if (idx == -1 || currentPage.maxRows <= idx || !currentPage.pageData.get(idx).clusteringKey.equals(htblColNameValue.get(clusteringKeyName))) {
+                            continue;
+                        }
+
+
+                        SerializablePageRecord currentRecord = currentPage.pageData.get(idx);
+                        for (String key : currentRecord.recordHash.keySet()) {
+                            if (htblColNameValue.containsKey(key)
+                                    && ((currentRecord.recordHash.get(key) instanceof Null) || !htblColNameValue.get(key).equals(currentRecord.recordHash.get(key)))) {
+                                continue w;
+                            }
+                        }
+
+                        deleteFromAllOctrees(strTableName, currentPage.pageData.get(idx));
+                        currentPage.pageData.remove(idx);
+                        if (currentPage.pageData.isEmpty()) {
+                            toBeDeleted.add(Integer.parseInt(r.pageName));
+                            found.add(Integer.parseInt(r.pageName));
+                        } else {
+                            writeToPage(strTableName, currentPage, Integer.parseInt(r.pageName));
+                        }
+
                     }
                 }
             }
@@ -665,8 +782,6 @@ public class DBApp{
         } catch (IOException | CsvException e) {
             throw new DBAppException("Problem with IO happened.");
         }
-        
-        
     }
     
     /*public Iterator selectFromTable(SQLTerm[] arrSQLTerms,

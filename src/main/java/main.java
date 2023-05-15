@@ -25,7 +25,7 @@ public class main {
 //        htblColNameMax.put("name", "ZZZZZZZZZZZZZZZZZ");
 //        htblColNameMax.put("gpa", "10000000");
 //        dbApp.createTable(strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
-        dbApp.verifyBeforeIndex("Student", new String[]{"id", "name", "gpa"});
+        //dbApp.verifyBeforeIndex("Student", new String[]{"id", "name", "gpa"});
 //        htblColNameValue.put("name", new String("Ahmed Noor"));
 //        htblColNameValue.put("gpa", new Double(0.95));
 //        dbApp.updateTable(strTableName, "2024-01-01", htblColNameValue);

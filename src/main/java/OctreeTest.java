@@ -6,7 +6,7 @@ public class OctreeTest {
     public static void main(String[] args) {
         try {
             // Create an instance of Octree
-            Octree octree = new Octree(null, 0, 0, 0, -100, -100, -100, 100, 100, 100);
+            //Octree octree = new Octree(null, 0, 0, 0, -100, -100, -100, 100, 100, 100);
 
 
 

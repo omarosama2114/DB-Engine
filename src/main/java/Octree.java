@@ -15,6 +15,14 @@ public class Octree implements Serializable{
         this.nodeSize = Integer.parseInt(prop.getProperty("MaximumEntriesinOctreeNode"));
     }
 
+    void reset(){
+        for(int i = 0; i<8; i++){
+            root.children[i] = null;
+        }
+        root.dummy = false;
+        root.data.clear();
+        root.records.clear();
+    }
 
     void insert(Comparable x, Comparable y, Comparable z, RecordReference record) {
         if(this.root.data.size() == 0) {
@@ -281,6 +289,21 @@ public class Octree implements Serializable{
         }
         return null;
     }
+
+    Vector<RecordReference> searchReferences(Comparable x, Comparable y, Comparable z) {
+        OctreeNode node = this.root;
+        Vector<RecordReference> references = new Vector<>();
+        while(node != null && node.dummy) {
+            Comparable[] cur = getIndex(node, x, y, z);
+            int index = (int) cur[0];
+            node = node.children[index];
+        }
+        if(node == null) return null;
+
+        references = node.records.getOrDefault(new Tuple(x, y, z), new Vector<>());
+        return references;
+    }
+
 
     void update(Comparable oldX, Comparable oldY, Comparable oldZ, Comparable newX, Comparable newY, Comparable newZ, RecordReference record) {
         if(search(oldX, oldY, oldZ) == null) return;
