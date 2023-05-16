@@ -4,7 +4,6 @@ import com.opencsv.exceptions.CsvException;
 
 import java.io.*;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -783,7 +782,7 @@ public class DBApp{
         }
     }
 
-    public String HasIndex(String strTableName, HashSet<String> htblcolName) throws IOException, ClassNotFoundException {
+    public String getIndex(String strTableName, HashSet<String> htblcolName) throws IOException, ClassNotFoundException {
         File tableFolder = new File(strTableName);
         String[] fileNames = tableFolder.list();
         Vector<RecordReference> references = new Vector<>();
@@ -800,91 +799,148 @@ public class DBApp{
         return "";
     }
 
-    public Vector<SerializablePageRecord> linearScan(String strTableName , SQLTerm[] arrSQLTerms, String[] strarrOperators) throws DBAppException, IOException, ClassNotFoundException {
-        int tableSize = getTableSize(strTableName);
-        Vector<SerializablePageRecord> resultSet = new Vector<>();
-        for (int i = 1; i <= tableSize; i++) {
-            Page current = readFromPage(strTableName, i);
-            for (SerializablePageRecord spr : current.pageData) {
-                boolean  flag2 = true;
-                for (int j = 0; j<arrSQLTerms.length; j++) {
-                    SQLTerm sqlTerm = arrSQLTerms[j];
-                    boolean flag = true;
-                    if (!sqlTerm._strTableName.equals(strTableName) || !spr.recordHash.containsKey(sqlTerm._strColumnName))
-                        throw new DBAppException("Table name/content is not correct");
-                    if (!sqlTerm._strOperator.equals("=")) {
-                        if (sqlTerm._strOperator.equals(">")) {
-                            if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) <= 0) {
-                                flag = false;
-                            }
-                        } else if (sqlTerm._strOperator.equals(">=")) {
-                            if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) < 0) {
-                                flag = false;
-                            }
-                        } else if (sqlTerm._strOperator.equals("<")) {
-                            if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) >= 0) {
-                                flag = false;
-                            }
-                        } else if (sqlTerm._strOperator.equals("<=")) {
-                            if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) > 0) {
-                                flag = false;
-                            }
-                        } else if (sqlTerm._strOperator.equals("!=")) {
-                            if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) == 0) {
-                                flag = false;
-                            }
+    public Vector<SerializablePageRecord> getAllOkInsidePage(String strTableName, SQLTerm[] arrSQLTerms, String[] strarrOperators, int index) throws DBAppException, IOException, ClassNotFoundException {
+        Page current = readFromPage(strTableName, index);
+        Vector<SerializablePageRecord> res = new Vector<>();
+        for (SerializablePageRecord spr : current.pageData) {
+            boolean  flag2 = true;
+            for (int j = 0; j<arrSQLTerms.length; j++) {
+                SQLTerm sqlTerm = arrSQLTerms[j];
+                boolean flag = true;
+                if (!sqlTerm._strTableName.equals(strTableName) || !spr.recordHash.containsKey(sqlTerm._strColumnName))
+                    throw new DBAppException("Table name/content is not correct");
+                if (!sqlTerm._strOperator.equals("=")) {
+                    if (sqlTerm._strOperator.equals(">")) {
+                        if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) <= 0) {
+                            flag = false;
                         }
-                    } else {
-                        if (!spr.recordHash.get(sqlTerm._strColumnName).equals(sqlTerm._objValue)) {
+                    } else if (sqlTerm._strOperator.equals(">=")) {
+                        if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) < 0) {
+                            flag = false;
+                        }
+                    } else if (sqlTerm._strOperator.equals("<")) {
+                        if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) >= 0) {
+                            flag = false;
+                        }
+                    } else if (sqlTerm._strOperator.equals("<=")) {
+                        if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) > 0) {
+                            flag = false;
+                        }
+                    } else if (sqlTerm._strOperator.equals("!=")) {
+                        if (((Comparable) spr.recordHash.get(sqlTerm._strColumnName)).compareTo(sqlTerm._objValue) == 0) {
                             flag = false;
                         }
                     }
-                    if (j > 0) {
-                        String operator = strarrOperators[j-1];
-                        if (operator.equals("AND")) {
-                            if (!flag) {
-                                flag2 = false;
-                            }
-                        } else if (operator.equals("OR")) {
-                            if (flag) {
-                                flag2 = true;
-                            }
-                        } else if (operator.equals("XOR")) {
-                            if (flag) {
-                                flag2 = !flag2;
-                            }
+                } else {
+                    if (!spr.recordHash.get(sqlTerm._strColumnName).equals(sqlTerm._objValue)) {
+                        flag = false;
+                    }
+                }
+                if (j > 0) {
+                    String operator = strarrOperators[j-1];
+                    if (operator.equals("AND")) {
+                        if (!flag) {
+                            flag2 = false;
+                        }
+                    } else if (operator.equals("OR")) {
+                        if (flag) {
+                            flag2 = true;
+                        }
+                    } else if (operator.equals("XOR")) {
+                        if (flag) {
+                            flag2 = !flag2;
                         }
                     }
-                    else
-                        flag2 = flag;
                 }
-                if (flag2) {
-                    resultSet.add(spr);
-                }
+                else
+                    flag2 = flag;
+            }
+            if(flag2){
+                res.add(spr);
             }
         }
+        return res;
+    }
+
+    public Vector<SerializablePageRecord> linearScan(String strTableName , SQLTerm[] arrSQLTerms, String[] strarrOperators) throws DBAppException, IOException, ClassNotFoundException {
+        int tableSize = getTableSize(strTableName);
+        Vector<SerializablePageRecord> resultSet = new Vector<>();
+        for (int i = 1; i <= tableSize; i++)
+            resultSet.addAll(getAllOkInsidePage(strTableName, arrSQLTerms, strarrOperators, i));
         return resultSet;
     }
     //TODO: return the recordHash or SerializablePageRecord itSelf?
 
+    Comparable getMax(Comparable x, Comparable y){
+        if(x.compareTo(y) > 0)
+            return x;
+        return y;
+    }
 
-    public void rangeQueries(SQLTerm[] arrSQLTerms , String[] strarrOperators) throws IOException, ClassNotFoundException {
+    Comparable getMin(Comparable x, Comparable y){
+        if(x.compareTo(y) < 0)
+            return x;
+        return y;
+    }
+
+    public Vector<SerializablePageRecord> rangeQueries(SQLTerm[] arrSQLTerms , String[] strarrOperators) throws IOException, ClassNotFoundException, DBAppException {
         HashSet<String> colNames = new HashSet<>();
         for (SQLTerm s : arrSQLTerms) colNames.add(s._strColumnName);
-        String indexName = HasIndex(arrSQLTerms[0]._strTableName, colNames);
+        String indexName = getIndex(arrSQLTerms[0]._strTableName, colNames);
         Octree tree = readFromOctree(arrSQLTerms[0]._strTableName, indexName);
+        String[] treeCols = indexName.split("_");
+        HashMap<String, Comparable> minVal = new HashMap<>(), maxVal = new HashMap<>(), eqVal = new HashMap<>();
+        minVal.put(treeCols[0], tree.root.minX);
+        minVal.put(treeCols[1], tree.root.minY);
+        minVal.put(treeCols[2], tree.root.minZ);
+        maxVal.put(treeCols[0], tree.root.maxX);
+        maxVal.put(treeCols[1], tree.root.maxY);
+        maxVal.put(treeCols[2], tree.root.maxZ);
+        for(SQLTerm term : arrSQLTerms){
+            if(!minVal.containsKey(term._strColumnName))continue;
+            if(term._strOperator.equals("=")){
+                if(eqVal.containsKey(term._strColumnName))
+                    return new Vector<>();
+                eqVal.put(term._strColumnName, (Comparable) term._objValue);
+            }
+            else if(term._strOperator.equals(">")){
+                minVal.put(term._strColumnName, getMax(minVal.get(term._strColumnName), (Comparable) term._objValue));
+            }
+            else if(term._strOperator.equals(">=")){
+                minVal.put(term._strColumnName, getMax(minVal.get(term._strColumnName), (Comparable) term._objValue));
+            }
+            else if(term._strOperator.equals("<")){
+                maxVal.put(term._strColumnName, getMin(maxVal.get(term._strColumnName), (Comparable) term._objValue));
+            }
+            else if(term._strOperator.equals("<=")){
+                maxVal.put(term._strColumnName, getMin(maxVal.get(term._strColumnName), (Comparable) term._objValue));
+            }
+        }
+        for(String col : minVal.keySet()){
+            if(minVal.get(col).compareTo(maxVal.get(col)) > 0)
+                return new Vector<>();
+        }
+        Vector<RecordReference> rr = tree.rangeQuery(tree.root, minVal.get(treeCols[0]), maxVal.get(treeCols[0]),
+                minVal.get(treeCols[1]), maxVal.get(treeCols[1]), minVal.get(treeCols[2]), maxVal.get(treeCols[2]));
+        Vector<SerializablePageRecord> res = new Vector<>();
+        HashSet<Integer> hs = new HashSet<>();
+        for(RecordReference r : rr)hs.add(Integer.parseInt(r.pageName));
+        for(Integer i : hs)
+            res.addAll(getAllOkInsidePage(arrSQLTerms[0]._strTableName, arrSQLTerms, strarrOperators, i));
+        return res;
     }
 
     public Iterator selectFromTable(SQLTerm[] arrSQLTerms, String[] strarrOperators) throws DBAppException{
         try {
             boolean flag = false;
             for (String s : strarrOperators) flag |= (s.equals("OR") || s.equals("XOR"));
+            for(SQLTerm term : arrSQLTerms)flag |= term._strOperator.equals("!=");
             HashSet<String> colNames = new HashSet<>();
             SelectIterator selectIterator = null;
             for (SQLTerm s : arrSQLTerms) {
                 colNames.add(s._strColumnName);
             }
-            if (flag || HasIndex(arrSQLTerms[0]._strTableName, colNames).isEmpty()) {
+            if (flag || getIndex(arrSQLTerms[0]._strTableName, colNames).isEmpty()) {
                 Vector<SerializablePageRecord> resultSet = linearScan(arrSQLTerms[0]._strTableName, arrSQLTerms, strarrOperators);
                 selectIterator = new SelectIterator(resultSet);
             } else {
