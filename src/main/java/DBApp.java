@@ -85,32 +85,37 @@ public class DBApp{
         // Write to CSV file which is open
         CSVWriter writer = new CSVWriter(new FileWriter(inputFile));
         String indexName = strarrColName[0] + "_" + strarrColName[1] + "_" + strarrColName[2];
+        Hashtable<String , Object> minValues = new Hashtable<>() , maxValues = new Hashtable<>();
         for(String[] x: csvBody) {
             if(Objects.equals(x[0], strTableName) && count.contains(x[1])){
                 x[4] = indexName;
                 x[5] = "OCTree";
                 if(x[2].equals("java.lang.Integer")) {
-                   min.add(Integer.parseInt(x[6]));
-                   max.add(Integer.parseInt(x[7]));
+                   minValues.put(x[1] , Integer.parseInt(x[6]));
+                   maxValues.put(x[1] , Integer.parseInt(x[7]));
+
                 }
                 else if(x[2].equals("java.lang.Double")) {
-                    min.add(Double.parseDouble(x[6]));
-                    max.add(Double.parseDouble(x[7]));
+                    minValues.put(x[1] , Double.parseDouble(x[6]));
+                    maxValues.put(x[1] ,Double.parseDouble(x[7]));
                 }
                 else if(x[2].equals("java.lang.String")) {
-                    min.add(x[6]);
-                    max.add(x[7]);
+                    minValues.put(x[1] , x[6]);
+                    maxValues.put(x[1] , x[7]);
                 }
                 else if(x[2].equals("java.util.Date")) {
-                    min.add(new SimpleDateFormat("yyyy-MM-dd").parse(x[6]));
-                    max.add(new SimpleDateFormat("yyyy-MM-dd").parse(x[7]));
+                    minValues.put(x[1] , new SimpleDateFormat("yyyy-MM-dd").parse(x[6]));
+                    maxValues.put(x[1] , new SimpleDateFormat("yyyy-MM-dd").parse(x[7]));
                 }
             }
+        }
+        for(String s : strarrColName){
+            min.add((Comparable) minValues.get(s));
+            max.add((Comparable) maxValues.get(s));
         }
         writer.writeAll(csvBody);
         writer.flush();
         writer.close();
-
         reader.close();
     }
 
@@ -119,7 +124,7 @@ public class DBApp{
             Vector<Comparable> colMin = new Vector<>();
             Vector<Comparable> colMax = new Vector<>();
             verifyBeforeIndex(strTableName, strarrColName, colMin, colMax);
-            Octree octree = new Octree(colMin.get(0), colMax.get(0), colMin.get(1), colMax.get(1), colMin.get(2), colMax.get(2));
+            Octree octree = new Octree(colMin.get(0), colMin.get(1) , colMin.get(2) , colMax.get(0) , colMax.get(1) , colMax.get(2));
             int size = getTableSize(strTableName);
             for(int i = 1; i <= size; i++) {
                 Page p = readFromPage(strTableName, i);
@@ -134,6 +139,10 @@ public class DBApp{
                 }
             }
             String indexName = strarrColName[0] + "_" + strarrColName[1] + "_" + strarrColName[2];
+            File theDir = new File(strTableName+"_index");
+            if (!theDir.exists()) {
+                theDir.mkdirs();
+            }
             writeToOctree(octree, strTableName, indexName);
 
         } catch (IOException | CsvException | ParseException | ClassNotFoundException e) {
@@ -187,7 +196,6 @@ public class DBApp{
 
                 }
                 String type = htblColNameValue.get(splitted[1]).getClass().toString().substring(6);
-                System.out.println(type + " " +splitted[2]);
                 if (!type.equals(splitted[2])) {
                     reader.close();
                     throw new DBAppException("Type Mismatch Error");
@@ -313,8 +321,9 @@ public class DBApp{
     //TODO
     //Rename record oldname to newname in all octrees
     public void renameInAllOctrees(HashMap<String, String> name, String strTableName) throws IOException, ClassNotFoundException {
-        File tableFolder = new File(strTableName);
+        File tableFolder = new File(strTableName+"_index");
         String[] fileNames = tableFolder.list();
+        if(fileNames == null) return;
         for(String fileName : fileNames) {
             if (fileName.endsWith(".class")) {
                 String[] tmp = fileName.split("\\.");
@@ -326,8 +335,9 @@ public class DBApp{
     }
 
     public void updateInAllOctrees(String strTableName, SerializablePageRecord srp, int idx, Hashtable<String, Object> newData) throws IOException, ClassNotFoundException {
-        File tableFolder = new File(strTableName);
+        File tableFolder = new File(strTableName+"_index");
         String[] fileNames = tableFolder.list();
+        if(fileNames == null) return;
         RecordReference rr = new RecordReference(idx+"", srp.clusteringKey);
         for(String fileName : fileNames) {
             if (fileName.endsWith(".class")) {
@@ -347,8 +357,9 @@ public class DBApp{
     }
 
     public void deleteFromAllOctrees(String strTableName, SerializablePageRecord spr) throws IOException, ClassNotFoundException {
-        File tableFolder = new File(strTableName);
+        File tableFolder = new File(strTableName+"_index");
         String[] fileNames = tableFolder.list();
+        if(fileNames == null) return;
         for(String fileName : fileNames) {
             if (fileName.endsWith(".class")) {
                 String[] tmp = fileName.split("\\.");
@@ -402,12 +413,14 @@ public class DBApp{
 
     public void insertIntoAllOctrees
             (String strTableName, Hashtable<String, Object> htblColNameValue, RecordReference r) throws IOException, ClassNotFoundException {
-        File tableFolder = new File(strTableName);
+        File tableFolder = new File(strTableName+"_index");
         String[] fileNames = tableFolder.list();
+        if(fileNames == null) return;
         for(String fileName : fileNames) {
             if (fileName.endsWith(".class")) {
                 String[] tmp = fileName.split("\\.");
                 String[] tmp2 = tmp[0].split("_");
+
                 Comparable x = (Comparable) htblColNameValue.get(tmp2[0]);
                 Comparable y = (Comparable) htblColNameValue.get(tmp2[1]);
                 Comparable z = (Comparable) htblColNameValue.get(tmp2[2]);
@@ -606,8 +619,9 @@ public class DBApp{
     }
 
     public void resetOctrees(String strTableName) throws IOException, ClassNotFoundException {
-        File tableFolder = new File(strTableName);
+        File tableFolder = new File(strTableName+"_index");
         String[] fileNames = tableFolder.list();
+        if(fileNames == null) return;
         for(String fileName : fileNames) {
             if (fileName.endsWith(".class")) {
                 String[] tmp = fileName.split("\\.");
@@ -619,8 +633,9 @@ public class DBApp{
     }
 
     public Vector<RecordReference> removeInAllOctrees(String strTableName, Hashtable<String, Object> htblcolNameValue) throws IOException, ClassNotFoundException {
-        File tableFolder = new File(strTableName);
+        File tableFolder = new File(strTableName+"_index");
         String[] fileNames = tableFolder.list();
+        if(fileNames == null) return new Vector<>();
         Vector<RecordReference> references = new Vector<>();
         for(String fileName : fileNames) {
             if (fileName.endsWith(".class")) {
@@ -794,8 +809,9 @@ public class DBApp{
     }
 
     public String getIndex(String strTableName, HashSet<String> htblcolName) throws IOException, ClassNotFoundException {
-        File tableFolder = new File(strTableName);
+        File tableFolder = new File(strTableName+"_index");
         String[] fileNames = tableFolder.list();
+        if(fileNames == null) return "";
         Vector<RecordReference> references = new Vector<>();
         for(String fileName : fileNames) {
             if (fileName.endsWith(".class")) {
@@ -901,6 +917,9 @@ public class DBApp{
         Octree tree = readFromOctree(arrSQLTerms[0]._strTableName, indexName);
         String[] treeCols = indexName.split("_");
         HashMap<String, Comparable> minVal = new HashMap<>(), maxVal = new HashMap<>(), eqVal = new HashMap<>();
+//        System.out.println(tree.root.minX+ " " + tree.root.minY + " " + tree.root.minZ);
+//        System.out.println(tree.root.maxX+ " " + tree.root.maxY + " " + tree.root.maxZ);
+//        System.out.println(Arrays.toString(treeCols));
         minVal.put(treeCols[0], tree.root.minX);
         minVal.put(treeCols[1], tree.root.minY);
         minVal.put(treeCols[2], tree.root.minZ);
@@ -915,6 +934,7 @@ public class DBApp{
                 eqVal.put(term._strColumnName, (Comparable) term._objValue);
             }
             else if(term._strOperator.equals(">")){
+               // System.out.println(term._strColumnName+" "+minVal.get(term._strColumnName)+" "+term._objValue);
                 minVal.put(term._strColumnName, getMax(minVal.get(term._strColumnName), (Comparable) term._objValue));
             }
             else if(term._strOperator.equals(">=")){
