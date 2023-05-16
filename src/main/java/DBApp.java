@@ -312,8 +312,17 @@ public class DBApp{
 
     //TODO
     //Rename record oldname to newname in all octrees
-    public void renameInAllOctrees(HashMap<String, String> name) throws IOException, ClassNotFoundException {
-        
+    public void renameInAllOctrees(HashMap<String, String> name, String strTableName) throws IOException, ClassNotFoundException {
+        File tableFolder = new File(strTableName);
+        String[] fileNames = tableFolder.list();
+        for(String fileName : fileNames) {
+            if (fileName.endsWith(".class")) {
+                String[] tmp = fileName.split("\\.");
+                Octree tree = readFromOctree(strTableName, tmp[0]);
+                tree.rename(name, tree.root);
+                writeToOctree(tree, strTableName, tmp[0]);
+            }
+        }
     }
 
     public void updateInAllOctrees(String strTableName, SerializablePageRecord srp, int idx, Hashtable<String, Object> newData) throws IOException, ClassNotFoundException {
@@ -765,6 +774,7 @@ public class DBApp{
                 }
             }
             deleteEntirePage(strTableName, toBeDeleted);
+            HashMap<String, String> hm = new HashMap<>();
             int cnt = 0;
             for(int i = 1; i<=pagesCount; i++){
                 if(found.contains(i)){
@@ -772,9 +782,10 @@ public class DBApp{
                 }
                 else if(cnt > 0){
                     renameFile(strTableName, i, i - cnt);
+                    hm.put(i + "", i - cnt + "");
                 }
             }
-        
+            if(!hm.isEmpty())renameInAllOctrees(hm, strTableName);
         } catch (ClassNotFoundException e) {
             throw new DBAppException("ClassNotFoundException was thrown.");
         } catch (IOException | CsvException e) {
@@ -944,7 +955,8 @@ public class DBApp{
                 Vector<SerializablePageRecord> resultSet = linearScan(arrSQLTerms[0]._strTableName, arrSQLTerms, strarrOperators);
                 selectIterator = new SelectIterator(resultSet);
             } else {
-
+                Vector<SerializablePageRecord> resultSet = rangeQueries(arrSQLTerms, strarrOperators);
+                selectIterator = new SelectIterator(resultSet);
             }
             return selectIterator;
         } catch (IOException | ClassNotFoundException e) {
