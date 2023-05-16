@@ -30,7 +30,14 @@ public class DBApp{
         }
         CSVWriter pw = null;
         try {
+            File f = new File("meta-data.csv");
             Vector<String[]> toBePrinted = new Vector<>();
+            if(f.exists() && !f.isDirectory()) {
+                FileReader fileReader = new FileReader("meta-data.csv");
+                CSVReader csvReader = new CSVReader(fileReader);
+                List<String[]> allData = csvReader.readAll();
+                toBePrinted.addAll(allData);
+            }
             pw = new CSVWriter(new FileWriter("meta-data.csv"));
             for (String name : htblColNameType.keySet()) {
                 String type = htblColNameType.get(name);
@@ -46,7 +53,9 @@ public class DBApp{
             pw.writeAll(toBePrinted);
         } catch (IOException e) {
             throw new DBAppException("Failed to output data to the meta-data file.");
-        }finally{
+        } catch (CsvException e) {
+            throw new RuntimeException(e);
+        } finally{
             if(pw != null)
                 pw.close();
         }
@@ -469,6 +478,13 @@ public class DBApp{
             throws DBAppException {
         StringBuilder clusteringKeyName = new StringBuilder();
         try {
+            for(String key: htblColNameValue.keySet()){
+                Object value = htblColNameValue.get(key);
+                if(value instanceof String){
+                    value = ((String) value).toLowerCase();
+                    htblColNameValue.put(key, value);
+                }
+            }
             verifyBeforeInsert(strTableName, htblColNameValue, clusteringKeyName);
             int pagesCount = getTableSize(strTableName);
             int[] boundaries = pagesBinarySearch(pagesCount, (Comparable) htblColNameValue.get(clusteringKeyName.toString()), strTableName);
@@ -480,7 +496,6 @@ public class DBApp{
         } catch (ParseException e) {
             throw new DBAppException("Parse exception occurred.");
         }
-
     }
 
     public void verifyBeforeUpdate(String strTableName, Hashtable<String, Object> htblColNameValue,
@@ -553,6 +568,14 @@ public class DBApp{
                             Hashtable<String, Object> htblColNameValue)
             throws DBAppException {
         try {
+            for(String key: htblColNameValue.keySet()){
+                Object value = htblColNameValue.get(key);
+                if(value instanceof String){
+                    value = ((String) value).toLowerCase();
+                    htblColNameValue.put(key, value);
+                }
+            }
+            strClusteringKeyValue = strClusteringKeyValue.toLowerCase();
             int pagesCount = getTableSize(strTableName);
             Comparable clusteringKey = (Comparable) getKey(strClusteringKeyValue, strTableName);
             verifyBeforeUpdate(strTableName, htblColNameValue, clusteringKey);
@@ -661,6 +684,13 @@ public class DBApp{
             throws DBAppException {
 
         try {
+            for(String key: htblColNameValue.keySet()){
+                Object value = htblColNameValue.get(key);
+                if(value instanceof String){
+                    value = ((String) value).toLowerCase();
+                    htblColNameValue.put(key, value);
+                }
+            }
             String clusteringKeyName = getClusteringKeyName(strTableName, htblColNameValue);
             int pagesCount = getTableSize(strTableName);
             Vector<Integer> toBeDeleted = new Vector<>();
@@ -965,7 +995,12 @@ public class DBApp{
         try {
             boolean flag = false;
             for (String s : strarrOperators) flag |= (s.equals("OR") || s.equals("XOR"));
-            for(SQLTerm term : arrSQLTerms)flag |= term._strOperator.equals("!=");
+            for(SQLTerm term : arrSQLTerms){
+                if(term._objValue instanceof String){
+                    term._objValue = ((String) term._objValue).toLowerCase();
+                }
+                flag |= term._strOperator.equals("!=");
+            }
             HashSet<String> colNames = new HashSet<>();
             SelectIterator selectIterator = null;
             for (SQLTerm s : arrSQLTerms) {

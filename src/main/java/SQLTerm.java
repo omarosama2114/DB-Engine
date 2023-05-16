@@ -7,4 +7,7 @@ public class SQLTerm {
         this._strOperator = _strOperator;
         this._objValue = _objValue;
     }
+    SQLTerm(){
+
+    }
 }
