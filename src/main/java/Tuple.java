@@ -19,4 +19,8 @@ public class Tuple implements Serializable, Comparable{
         }
         return current.x.compareTo(this.x);
     }
+
+    public String toString(){
+        return "" + x + " " + y + " "  + z;
+    }
 }

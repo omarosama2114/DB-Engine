@@ -11,6 +11,7 @@ import java.util.*;
 public class DBApp{
 
 //TODO Complete DBApp
+    static HashMap<String, Octree> openedBefore = new HashMap<>();
 
     public void init() {
     }
@@ -147,7 +148,7 @@ public class DBApp{
                     octree.insert(temp.get(0), temp.get(1), temp.get(2), r);
                 }
             }
-            String indexName = strarrColName[0] + "_" + strarrColName[1] + "_" + strarrColName[2];
+            String indexName = strarrColName[0] + "-" + strarrColName[1] + "-" + strarrColName[2];
             File theDir = new File(strTableName+"_index");
             if (!theDir.exists()) {
                 theDir.mkdirs();
@@ -269,11 +270,14 @@ public class DBApp{
     }
 
     public Octree readFromOctree(String strTableName, String name) throws IOException, ClassNotFoundException {
-        FileInputStream fis = new FileInputStream(strTableName + "_index/" + name + ".class");
+        String file = strTableName + "_index/" + name + ".class";
+        if(openedBefore.containsKey(file))return openedBefore.get(file);
+        FileInputStream fis = new FileInputStream(file);
         ObjectInputStream ois = new ObjectInputStream(fis);
         Octree b = (Octree) ois.readObject();
         ois.close();
         fis.close();
+        openedBefore.put(file, b);
         return b;
     }
 
@@ -351,7 +355,7 @@ public class DBApp{
         for(String fileName : fileNames) {
             if (fileName.endsWith(".class")) {
                 String[] tmp = fileName.split("\\.");
-                String[] tmp2 = tmp[0].split("_");
+                String[] tmp2 = tmp[0].split("-");
                 Comparable x = (Comparable) srp.recordHash.get(tmp2[0]);
                 Comparable y = (Comparable) srp.recordHash.get(tmp2[1]);
                 Comparable z = (Comparable) srp.recordHash.get(tmp2[2]);
@@ -372,7 +376,7 @@ public class DBApp{
         for(String fileName : fileNames) {
             if (fileName.endsWith(".class")) {
                 String[] tmp = fileName.split("\\.");
-                String[] tmp2 = tmp[0].split("_");
+                String[] tmp2 = tmp[0].split("-");
                 Comparable x = (Comparable) spr.recordHash.get(tmp2[0]);
                 Comparable y = (Comparable) spr.recordHash.get(tmp2[1]);
                 Comparable z = (Comparable) spr.recordHash.get(tmp2[2]);
@@ -428,7 +432,7 @@ public class DBApp{
         for(String fileName : fileNames) {
             if (fileName.endsWith(".class")) {
                 String[] tmp = fileName.split("\\.");
-                String[] tmp2 = tmp[0].split("_");
+                String[] tmp2 = tmp[0].split("-");
 
                 Comparable x = (Comparable) htblColNameValue.get(tmp2[0]);
                 Comparable y = (Comparable) htblColNameValue.get(tmp2[1]);
@@ -663,7 +667,7 @@ public class DBApp{
         for(String fileName : fileNames) {
             if (fileName.endsWith(".class")) {
                 String[] tmp = fileName.split("\\.");
-                String[] tmp2 = tmp[0].split("_");
+                String[] tmp2 = tmp[0].split("-");
                 if(!htblcolNameValue.containsKey(tmp2[0]) || !htblcolNameValue.containsKey(tmp2[1])
                         || !htblcolNameValue.containsKey(tmp2[2]))continue;
                 Octree tree = readFromOctree(strTableName, tmp[0]);
@@ -846,7 +850,7 @@ public class DBApp{
         for(String fileName : fileNames) {
             if (fileName.endsWith(".class")) {
                 String[] tmp = fileName.split("\\.");
-                String[] tmp2 = tmp[0].split("_");
+                String[] tmp2 = tmp[0].split("-");
                 if(!htblcolName.contains(tmp2[0]) || !htblcolName.contains(tmp2[1]) || !htblcolName.contains(tmp2[2]))continue;
                 return tmp[0];
                 //tree.remove(htblcolNameValue.get(tmp2[0]), htblcolNameValue.get(tmp2[1]), htblcolNameValue());
@@ -945,7 +949,7 @@ public class DBApp{
         for (SQLTerm s : arrSQLTerms) colNames.add(s._strColumnName);
         String indexName = getIndex(arrSQLTerms[0]._strTableName, colNames);
         Octree tree = readFromOctree(arrSQLTerms[0]._strTableName, indexName);
-        String[] treeCols = indexName.split("_");
+        String[] treeCols = indexName.split("-");
         HashMap<String, Comparable> minVal = new HashMap<>(), maxVal = new HashMap<>(), eqVal = new HashMap<>();
 //        System.out.println(tree.root.minX+ " " + tree.root.minY + " " + tree.root.minZ);
 //        System.out.println(tree.root.maxX+ " " + tree.root.maxY + " " + tree.root.maxZ);
@@ -1022,53 +1026,453 @@ public class DBApp{
 //    public Iterator parseSQL( StringBuffer strbufSQL ) throws
 //    DBAppException{}
 
-    
-    
-    public static void main(String[] args) throws DBAppException, IOException, ParseException, ClassNotFoundException {
-//        String strTableName = "Student";
-//        DBApp dbApp = new DBApp( );
-//        Hashtable htblColNameType = new Hashtable( );
-//        htblColNameType.put("id", "java.lang.Integer");
-//        htblColNameType.put("name", "java.lang.String");
-//        htblColNameType.put("gpa", "java.lang.Double");
-//        Hashtable htblColNameMin = new Hashtable();
-//        htblColNameMin.put("id", "0");
-//        htblColNameMin.put("name", "A");
-//        htblColNameMin.put("gpa", "0");
-//        Hashtable htblColNameMax = new Hashtable();
-//        htblColNameMax.put("id", "100000000");
-//        htblColNameMax.put("name", "ZZZZZZZZZZZZZZZZZ");
-//        htblColNameMax.put("gpa", "10000000");
-//        dbApp.createTable( strTableName, "id", htblColNameType, htblColNameMin, htblColNameMax);
-//        Hashtable htblColNameValue = new Hashtable( );
-//        htblColNameValue.put("id", new Integer( 2343432 ));
-//        htblColNameValue.put("name", new String("Ahmed Noor" ) );
-//        htblColNameValue.put("gpa", new Double( 0.95 ) );
-//        dbApp.insertIntoTable( strTableName , htblColNameValue );
-//        htblColNameValue.clear( );
-//        htblColNameValue.put("id", new Integer( 453455 ));
-//        htblColNameValue.put("name", new String("Ahmed Noor" ) );
-//        htblColNameValue.put("gpa", new Double( 0.95 ) );
-//        dbApp.insertIntoTable( strTableName , htblColNameValue );
-//        htblColNameValue.clear( );
-//        htblColNameValue.put("id", new Integer( 5674567 ));
-//        htblColNameValue.put("name", new String("Dalia Noor" ) );
-//        htblColNameValue.put("gpa", new Double( 1.25 ) );
-//        dbApp.insertIntoTable( strTableName , htblColNameValue );
-//        htblColNameValue.clear( );
-//        htblColNameValue.put("id", new Integer( 23498 ));
-//        htblColNameValue.put("name", new String("John Noor" ) );
-//        htblColNameValue.put("gpa", new Double( 1.5 ) );
-//        dbApp.insertIntoTable( strTableName , htblColNameValue );
-//        htblColNameValue.clear( );
-//        htblColNameValue.put("id", new Integer( 78452 ));
-//        htblColNameValue.put("name", new String("ZAKY NOOR" ) );
-//        htblColNameValue.put("gpa", new Double( 0.88 ) );
-//        dbApp.insertIntoTable( strTableName , htblColNameValue );
-//        htblColNameValue.clear();
-//        htblColNameValue.put("name", new String("ZAKY NOOR" ));
-//        htblColNameValue.put("gpa", new Double( 1.23));
-//        dbApp.updateTable(strTableName, "78452", htblColNameValue);
+
+
+    private static void insertCoursesRecords(DBApp dbApp, int limit) throws Exception {
+        BufferedReader coursesTable = new BufferedReader(new FileReader("courses_table.csv"));
+        String record;
+        Hashtable<String, Object> row = new Hashtable<>();
+        int c = limit;
+        if (limit == -1) {
+            c = 1;
+        }
+        while ((record = coursesTable.readLine()) != null && c > 0) {
+            String[] fields = record.split(",");
+
+            int year = Integer.parseInt(fields[0].trim().substring(0, 4));
+            int month = Integer.parseInt(fields[0].trim().substring(5, 7));
+            int day = Integer.parseInt(fields[0].trim().substring(8));
+
+            Date dateAdded = new Date(year - 1900, month - 1, day);
+
+            row.put("date_added", fields[0].trim());
+
+            row.put("course_id", fields[1]);
+            row.put("course_name", fields[2]);
+            row.put("hours", Integer.parseInt(fields[3]));
+            row.put("date_added", dateAdded);
+
+            dbApp.insertIntoTable("courses", row);
+            row.clear();
+
+            if (limit != -1) {
+                c--;
+            }
+        }
+
+        coursesTable.close();
+    }
+
+    private static void insertStudentRecords(DBApp dbApp, int limit) throws Exception {
+        BufferedReader studentsTable = new BufferedReader(new FileReader("students_table.csv"));
+        String record;
+        int c = limit;
+        if (limit == -1) {
+            c = 1;
+        }
+
+        Hashtable<String, Object> row = new Hashtable<>();
+        while ((record = studentsTable.readLine()) != null && c > 0) {
+            String[] fields = record.split(",");
+
+            row.put("id", fields[0]);
+            row.put("first_name", fields[1]);
+            row.put("last_name", fields[2]);
+
+            int year = Integer.parseInt(fields[3].trim().substring(0, 4));
+            int month = Integer.parseInt(fields[3].trim().substring(5, 7));
+            int day = Integer.parseInt(fields[3].trim().substring(8));
+
+            Date dob = new Date(year - 1900, month - 1, day);
+            row.put("dob", dob);
+
+            double gpa = Double.parseDouble(fields[4].trim());
+
+            row.put("gpa", gpa);
+
+            dbApp.insertIntoTable("students", row);
+            row.clear();
+            if (limit != -1) {
+                c--;
+            }
+        }
+        studentsTable.close();
+    }
+
+    private static void insertTranscriptsRecords(DBApp dbApp, int limit) throws Exception {
+        BufferedReader transcriptsTable = new BufferedReader(new FileReader("transcripts_table.csv"));
+        String record;
+        Hashtable<String, Object> row = new Hashtable<>();
+        int c = limit;
+        if (limit == -1) {
+            c = 1;
+        }
+        while ((record = transcriptsTable.readLine()) != null && c > 0) {
+            String[] fields = record.split(",");
+
+            row.put("gpa", Double.parseDouble(fields[0].trim()));
+            row.put("student_id", fields[1].trim());
+            row.put("course_name", fields[2].trim());
+
+            String date = fields[3].trim();
+            int year = Integer.parseInt(date.substring(0, 4));
+            int month = Integer.parseInt(date.substring(5, 7));
+            int day = Integer.parseInt(date.substring(8));
+
+            Date dateUsed = new Date(year - 1900, month - 1, day);
+            row.put("date_passed", dateUsed);
+
+            dbApp.insertIntoTable("transcripts", row);
+            row.clear();
+
+            if (limit != -1) {
+                c--;
+            }
+        }
+
+        transcriptsTable.close();
+    }
+
+    private static void insertPCsRecords(DBApp dbApp, int limit) throws Exception {
+        BufferedReader pcsTable = new BufferedReader(new FileReader("pcs_table.csv"));
+        String record;
+        Hashtable<String, Object> row = new Hashtable<>();
+        int c = limit;
+        if (limit == -1) {
+            c = 1;
+        }
+        while ((record = pcsTable.readLine()) != null && c > 0) {
+            String[] fields = record.split(",");
+
+            row.put("pc_id", Integer.parseInt(fields[0].trim()));
+            row.put("student_id", fields[1].trim());
+
+            dbApp.insertIntoTable("pcs", row);
+            row.clear();
+
+            if (limit != -1) {
+                c--;
+            }
+        }
+
+        pcsTable.close();
+    }
+
+    private static void createTranscriptsTable(DBApp dbApp) throws Exception {
+        // Double CK
+        String tableName = "transcripts";
+
+        Hashtable<String, String> htblColNameType = new Hashtable<String, String>();
+        htblColNameType.put("gpa", "java.lang.Double");
+        htblColNameType.put("student_id", "java.lang.String");
+        htblColNameType.put("course_name", "java.lang.String");
+        htblColNameType.put("date_passed", "java.util.Date");
+
+        Hashtable<String, String> minValues = new Hashtable<>();
+        minValues.put("gpa", "0.7");
+        minValues.put("student_id", "43-0000");
+        minValues.put("course_name", "AAAAAA");
+        minValues.put("date_passed", "1990-01-01");
+
+        Hashtable<String, String> maxValues = new Hashtable<>();
+        maxValues.put("gpa", "5.0");
+        maxValues.put("student_id", "99-9999");
+        maxValues.put("course_name", "zzzzzz");
+        maxValues.put("date_passed", "2020-12-31");
+
+        dbApp.createTable(tableName, "gpa", htblColNameType, minValues, maxValues);
+    }
+
+    private static void createStudentTable(DBApp dbApp) throws Exception {
+        // String CK
+        String tableName = "students";
+
+        Hashtable<String, String> htblColNameType = new Hashtable<String, String>();
+        htblColNameType.put("id", "java.lang.String");
+        htblColNameType.put("first_name", "java.lang.String");
+        htblColNameType.put("last_name", "java.lang.String");
+        htblColNameType.put("dob", "java.util.Date");
+        htblColNameType.put("gpa", "java.lang.Double");
+
+        Hashtable<String, String> minValues = new Hashtable<>();
+        minValues.put("id", "43-0000");
+        minValues.put("first_name", "AAAAAA");
+        minValues.put("last_name", "AAAAAA");
+        minValues.put("dob", "1990-01-01");
+        minValues.put("gpa", "0.7");
+
+        Hashtable<String, String> maxValues = new Hashtable<>();
+        maxValues.put("id", "99-9999");
+        maxValues.put("first_name", "zzzzzz");
+        maxValues.put("last_name", "zzzzzz");
+        maxValues.put("dob", "2000-12-31");
+        maxValues.put("gpa", "5.0");
+
+        dbApp.createTable(tableName, "id", htblColNameType, minValues, maxValues);
+    }
+
+    private static void createPCsTable(DBApp dbApp) throws Exception {
+        // Integer CK
+        String tableName = "pcs";
+
+        Hashtable<String, String> htblColNameType = new Hashtable<String, String>();
+        htblColNameType.put("pc_id", "java.lang.Integer");
+        htblColNameType.put("student_id", "java.lang.String");
+
+        Hashtable<String, String> minValues = new Hashtable<>();
+        minValues.put("pc_id", "0");
+        minValues.put("student_id", "43-0000");
+
+        Hashtable<String, String> maxValues = new Hashtable<>();
+        maxValues.put("pc_id", "20000");
+        maxValues.put("student_id", "99-9999");
+
+        dbApp.createTable(tableName, "pc_id", htblColNameType, minValues, maxValues);
+    }
+
+    private static void createCoursesTable(DBApp dbApp) throws Exception {
+        // Date CK
+        String tableName = "courses";
+
+        Hashtable<String, String> htblColNameType = new Hashtable<String, String>();
+        htblColNameType.put("date_added", "java.util.Date");
+        htblColNameType.put("course_id", "java.lang.String");
+        htblColNameType.put("course_name", "java.lang.String");
+        htblColNameType.put("hours", "java.lang.Integer");
+
+        Hashtable<String, String> minValues = new Hashtable<>();
+        minValues.put("date_added", "1901-01-01");
+        minValues.put("course_id", "0000");
+        minValues.put("course_name", "AAAAAA");
+        minValues.put("hours", "1");
+
+        Hashtable<String, String> maxValues = new Hashtable<>();
+        maxValues.put("date_added", "2020-12-31");
+        maxValues.put("course_id", "9999");
+        maxValues.put("course_name", "zzzzzz");
+        maxValues.put("hours", "24");
+
+        dbApp.createTable(tableName, "date_added", htblColNameType, minValues, maxValues);
+
+    }
+
+    public static void main(String[] args) throws Exception {
+        DBApp db = new DBApp();
+//        db.init();
+//        createCoursesTable(db);
+//        createPCsTable(db);
+//        createTranscriptsTable(db);
+//        createStudentTable(db);
+//        insertPCsRecords(db, 500);
+//        insertTranscriptsRecords(db, 500);
+//        insertStudentRecords(db, 500);
+//        insertCoursesRecords(db, 500);
+//        System.out.println("done");
+//        for(int i = 1; i<=2; i++){
+//            FileInputStream fis = new FileInputStream("courses/" + i + ".class");
+//            ObjectInputStream ois = new ObjectInputStream(fis);
+//            Page b = (Page) ois.readObject();
+//            for(SerializablePageRecord s : b.pageData){
+//                for(String key : s.recordHash.keySet()){
+//                    System.out.print(key + " " + s.recordHash.get(key) + " ");
+//                }
+//                System.out.println();
+//            }
+//            System.out.println("=========");
+//
+//        }
+        // incorrent insert
+//        Hashtable htblColNameValue = new Hashtable();
+//        htblColNameValue.put("pc_id","10000");
+//        htblColNameValue.put("student_id", "43-1111");
+//
+//        db.insertIntoTable( "pcs" , htblColNameValue );
+        //2nd incorrect insert
+//        Hashtable htblColNameValue = new Hashtable();
+//        htblColNameValue.put("pc_id",10000);
+//        htblColNameValue.put("student_id", "43-1111");
+//        htblColNameValue.put("ghalat", "43-1111");
+//        db.insertIntoTable( "pcs" , htblColNameValue );
+        //3rd incorrect insert
+//        Hashtable htblColNameValue = new Hashtable();
+//        htblColNameValue.put("pc_id",10000);
+//        db.insertIntoTable( "pcs" , htblColNameValue );
+        //first update
+//        Hashtable htblColNameValue = new Hashtable();
+//        htblColNameValue.put("first_name","Hamada");
+//        htblColNameValue.put("last_name","Hamadaa");
+//        htblColNameValue.put("gpa",1.2);
+//        htblColNameValue.put("dob", new Date("1990/12/31"));
+//
+//        db.updateTable("students", "44-1562", htblColNameValue);
+        //incorrect update
+//        Hashtable htblColNameValue = new Hashtable();
+//        htblColNameValue.put("first_name","Hamada");
+//        htblColNameValue.put("last_name","Hamadaa");
+//        htblColNameValue.put("gpa",1.2);
+//        htblColNameValue.put("dob", new Date("1990/12/31"));
+//        htblColNameValue.put("ghalat", "12343");
+//        db.updateTable("students", "44-1562", htblColNameValue);
+        //first update
+//        Hashtable htblColNameValue = new Hashtable();
+//        htblColNameValue.put("date_added", new Date("1932/06/30"));
+//        db.deleteFromTable("courses", htblColNameValue);
+        //second update
+//        Hashtable htblColNameValue = new Hashtable();
+//        htblColNameValue.put("hours", 16);
+//        db.deleteFromTable("courses", htblColNameValue);
+//        SQLTerm[] arrSQLTerms;
+//        arrSQLTerms = new SQLTerm[2];
+//        arrSQLTerms[0]= new SQLTerm();
+//        arrSQLTerms[1]=new SQLTerm();
+//        arrSQLTerms[0]._strTableName = "courses";
+//        arrSQLTerms[0]._strColumnName= "course_name";
+//        arrSQLTerms[0]._strOperator = "=";
+//        arrSQLTerms[0]._objValue = "FjGZmL";
+//        arrSQLTerms[1]._strTableName = "courses";
+//        arrSQLTerms[1]._strColumnName= "hours";
+//        arrSQLTerms[1]._strOperator = "<=";
+//        arrSQLTerms[1]._objValue =24;
+//        String[]strarrOperators = new String[1];
+//        strarrOperators[0] = "OR";
+//        long start = System.currentTimeMillis();
+//        Iterator it = db.selectFromTable(arrSQLTerms, strarrOperators);
+//
+//        while(it.hasNext()) {
+//            System.out.println(it.next());
+//        }
+//        long end = System.currentTimeMillis();
+//
+//        System.out.println("time difference is "+(end-start));
+
+//        SQLTerm[] arrSQLTerms;
+//        arrSQLTerms = new SQLTerm[3];
+//        arrSQLTerms[0]= new SQLTerm();
+//        arrSQLTerms[1]=new SQLTerm();
+//        arrSQLTerms[2]=new SQLTerm();
+//        arrSQLTerms[0]._strTableName = "courses";
+//        arrSQLTerms[0]._strColumnName= "course_id";
+//        arrSQLTerms[0]._strOperator = "=";
+//        arrSQLTerms[0]._objValue = "0950";
+//        arrSQLTerms[1]._strTableName = "courses";
+//        arrSQLTerms[1]._strColumnName= "hours";
+//        arrSQLTerms[1]._strOperator = "=";
+//        arrSQLTerms[1]._objValue =20;
+//        arrSQLTerms[2]._strTableName = "courses";
+//        arrSQLTerms[2]._strColumnName= "date_added";
+//        arrSQLTerms[2]._strOperator = "=";
+//        arrSQLTerms[2]._objValue = new Date("2008/06/31");
+//        String[]strarrOperators = new String[2];
+//        strarrOperators[0] = "AND";
+//        strarrOperators[1] = "AND";
+//        long start = System.currentTimeMillis();
+//
+//
+//
+//        Iterator it = db.selectFromTable(arrSQLTerms, strarrOperators);
+//
+//        while(it.hasNext()) {
+//            System.out.println(it.next());
+//        }
+//        long end = System.currentTimeMillis();
+//
+//        System.out.println("time difference is "+(end-start));
+//        SQLTerm[] arrSQLTerms;
+//        arrSQLTerms = new SQLTerm[3];
+//        arrSQLTerms[0]= new SQLTerm();
+//        arrSQLTerms[1]=new SQLTerm();
+//        arrSQLTerms[2]=new SQLTerm();
+//        arrSQLTerms[0]._strTableName = "courses";
+//        arrSQLTerms[0]._strColumnName= "course_id";
+//        arrSQLTerms[0]._strOperator = "=";
+//        arrSQLTerms[0]._objValue = "0950";
+//        arrSQLTerms[1]._strTableName = "courses";
+//        arrSQLTerms[1]._strColumnName= "hours";
+//        arrSQLTerms[1]._strOperator = "<=";
+//        arrSQLTerms[1]._objValue =20;
+//        arrSQLTerms[2]._strTableName = "courses";
+//        arrSQLTerms[2]._strColumnName= "course_name";
+//        arrSQLTerms[2]._strOperator = "=";
+//        arrSQLTerms[2]._objValue = "swusvz";
+//        String[]strarrOperators = new String[2];
+//        strarrOperators[0] = "OR";
+//        strarrOperators[1] = "AND";
+//        long start = System.currentTimeMillis();
+//
+//
+//
+//        Iterator it = db.selectFromTable(arrSQLTerms, strarrOperators);
+//
+//        while(it.hasNext()) {
+//            System.out.println(it.next());
+//        }
+//        long end = System.currentTimeMillis();
+//
+//        System.out.println("time difference is "+(end-start));
+//        SQLTerm[] arrSQLTerms;
+//        arrSQLTerms = new SQLTerm[2];
+//        arrSQLTerms[0]= new SQLTerm();
+//        arrSQLTerms[1]=new SQLTerm();
+//        arrSQLTerms[0]._strTableName = "courses";
+//        arrSQLTerms[0]._strColumnName= "course_id";
+//        arrSQLTerms[0]._strOperator = "=";
+//        arrSQLTerms[0]._objValue = "0950";
+//        arrSQLTerms[1]._strTableName = "courses";
+//        arrSQLTerms[1]._strColumnName= "hours";
+//        arrSQLTerms[1]._strOperator = "!=";
+//        arrSQLTerms[1]._objValue =16;
+//        String[]strarrOperators = new String[1];
+//        strarrOperators[0] = "OR";
+//        long start = System.currentTimeMillis();
+//
+//
+//
+//        Iterator it = db.selectFromTable(arrSQLTerms, strarrOperators);
+//
+//        while(it.hasNext()) {
+//            System.out.println(it.next());
+//        }
+//        long end = System.currentTimeMillis();
+//
+//        System.out.println("time difference is "+(end-start));
+//        db.createIndex("courses", new String[] {"course_id","hours","date_added"});
+        //Octree o = db.readFromOctree("courses", "course_id-hours-date_added");
+        //o.print();
+
+        SQLTerm[] arrSQLTerms;
+        arrSQLTerms = new SQLTerm[3];
+        arrSQLTerms[0]= new SQLTerm();
+        arrSQLTerms[1]=new SQLTerm();
+        arrSQLTerms[2]=new SQLTerm();
+        arrSQLTerms[0]._strTableName = "courses";
+        arrSQLTerms[0]._strColumnName= "course_id";
+        arrSQLTerms[0]._strOperator = "=";
+        arrSQLTerms[0]._objValue = "0950";
+        arrSQLTerms[1]._strTableName = "courses";
+        arrSQLTerms[1]._strColumnName= "hours";
+        arrSQLTerms[1]._strOperator = "=";
+        arrSQLTerms[1]._objValue =20;
+        arrSQLTerms[2]._strTableName = "courses";
+        arrSQLTerms[2]._strColumnName= "date_added";
+        arrSQLTerms[2]._strOperator = "=";
+        arrSQLTerms[2]._objValue = new Date("2008/06/31");
+        String[]strarrOperators = new String[2];
+        strarrOperators[0] = "AND";
+        strarrOperators[1] = "AND";
+
+        db.selectFromTable(arrSQLTerms, strarrOperators);     //<-- this is the first call we need to avoid reading from disk
+
+        long start = System.currentTimeMillis();
+
+
+        Iterator it = db.selectFromTable(arrSQLTerms, strarrOperators);
+
+        while(it.hasNext()) {
+            System.out.println(it.next());
+        }
+        long end = System.currentTimeMillis();
+
+        System.out.println("time difference is "+(end-start));
     }
 
 }

@@ -42,4 +42,20 @@ public class OctreeNode implements Serializable{
         myData.addAll(records);
         this.records.put(newTuple, myData);
     }
+
+    public String toString(){
+        String res = minX + " " + maxX + " " + minY + " " + maxY + " " + minZ + " " + maxZ + "\n";
+        int cnt = 0;
+        for(Tuple t: records.keySet()){
+            res += t.toString()+" -> ";
+            for(RecordReference r : records.get(t)){
+                res += r.clusteringKey+" ";
+                cnt++;
+            }
+
+            res += "cnt = " + cnt + "\n";
+
+        }
+        return res;
+    }
 }

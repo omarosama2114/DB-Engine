@@ -43,6 +43,8 @@ public class Octree implements Serializable{
             node.add(x, y, z, record);
             return;
         }
+
+
         do {
 
             node.dummy = true;
@@ -366,6 +368,21 @@ public class Octree implements Serializable{
             }
         }
     }
+
+    void print(){
+        Queue<OctreeNode> q = new LinkedList<>();
+        q.add(root);
+        while(!q.isEmpty()){
+            OctreeNode currentNode = q.poll();
+            System.out.println(currentNode);
+            for(int i = 0; i<currentNode.children.length; i++){
+                if(currentNode.children[i] != null){
+                    q.add(currentNode.children[i]);
+                }
+            }
+        }
+    }
+
 }
 
 
